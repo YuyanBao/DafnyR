@@ -1,0 +1,7 @@
+C:\Projects\Boogie\Source\Graph\bin\Release\Graph.dll
+C:\Projects\Boogie\Source\Graph\bin\Release\Graph.pdb
+C:\Projects\Boogie\Source\Graph\bin\Release\CodeContractsExtender.dll
+C:\Projects\Boogie\Source\Graph\bin\Release\CodeContractsExtender.pdb
+C:\Projects\Boogie\Source\Graph\obj\Release\ResolveAssemblyReference.cache
+C:\Projects\Boogie\Source\Graph\obj\Release\Graph.dll
+C:\Projects\Boogie\Source\Graph\obj\Release\Graph.pdb

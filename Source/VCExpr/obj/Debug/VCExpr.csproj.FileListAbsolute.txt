@@ -1,0 +1,15 @@
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\VCExpr.dll
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\VCExpr.pdb
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\Basetypes.dll
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\CodeContractsExtender.dll
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\Core.dll
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\ParserHelper.dll
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\Graph.dll
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\Basetypes.pdb
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\CodeContractsExtender.pdb
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\Core.pdb
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\ParserHelper.pdb
+C:\Projects\Boogie\Source\VCExpr\bin\Debug\Graph.pdb
+C:\Projects\Boogie\Source\VCExpr\obj\Debug\ResolveAssemblyReference.cache
+C:\Projects\Boogie\Source\VCExpr\obj\Debug\VCExpr.dll
+C:\Projects\Boogie\Source\VCExpr\obj\Debug\VCExpr.pdb

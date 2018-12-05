@@ -1,0 +1,5 @@
+C:\Users\Yuyan\AppData\Local\Microsoft\VisualStudio\10.0Exp\Extensions\Microsoft Research\DafnyService\1.0\\DafnyLanguageService.dll
+C:\Users\Yuyan\AppData\Local\Microsoft\VisualStudio\10.0Exp\Extensions\Microsoft Research\DafnyService\1.0\\Irony.dll
+C:\Users\Yuyan\AppData\Local\Microsoft\VisualStudio\10.0Exp\Extensions\Microsoft Research\DafnyService\1.0\\DafnyLanguageService.pkgdef
+C:\Users\Yuyan\AppData\Local\Microsoft\VisualStudio\10.0Exp\Extensions\Microsoft Research\DafnyService\1.0\\extension.vsixmanifest
+C:\Users\Yuyan\AppData\Local\Microsoft\VisualStudio\10.0Exp\Extensions\Microsoft Research\DafnyService\1.0\\DafnyLanguageService.pdb

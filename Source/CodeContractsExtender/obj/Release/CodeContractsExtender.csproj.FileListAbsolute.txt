@@ -1,0 +1,5 @@
+C:\Projects\Boogie\Source\CodeContractsExtender\bin\Release\CodeContractsExtender.dll
+C:\Projects\Boogie\Source\CodeContractsExtender\bin\Release\CodeContractsExtender.pdb
+C:\Projects\Boogie\Source\CodeContractsExtender\obj\Release\ResolveAssemblyReference.cache
+C:\Projects\Boogie\Source\CodeContractsExtender\obj\Release\CodeContractsExtender.dll
+C:\Projects\Boogie\Source\CodeContractsExtender\obj\Release\CodeContractsExtender.pdb

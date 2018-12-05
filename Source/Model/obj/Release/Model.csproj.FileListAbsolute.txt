@@ -1,0 +1,5 @@
+C:\Projects\Boogie\Source\Model\bin\Release\Model.dll
+C:\Projects\Boogie\Source\Model\bin\Release\Model.pdb
+C:\Projects\Boogie\Source\Model\obj\Release\ResolveAssemblyReference.cache
+C:\Projects\Boogie\Source\Model\obj\Release\Model.dll
+C:\Projects\Boogie\Source\Model\obj\Release\Model.pdb

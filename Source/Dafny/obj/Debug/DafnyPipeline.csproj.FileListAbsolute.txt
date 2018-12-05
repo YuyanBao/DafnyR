@@ -1,0 +1,15 @@
+C:\Projects\Boogie\Source\Dafny\bin\Debug\DafnyPipeline.dll
+C:\Projects\Boogie\Source\Dafny\bin\Debug\DafnyPipeline.pdb
+C:\Projects\Boogie\Source\Dafny\bin\Debug\Basetypes.dll
+C:\Projects\Boogie\Source\Dafny\bin\Debug\Core.dll
+C:\Projects\Boogie\Source\Dafny\bin\Debug\ParserHelper.dll
+C:\Projects\Boogie\Source\Dafny\bin\Debug\CodeContractsExtender.dll
+C:\Projects\Boogie\Source\Dafny\bin\Debug\Graph.dll
+C:\Projects\Boogie\Source\Dafny\bin\Debug\Basetypes.pdb
+C:\Projects\Boogie\Source\Dafny\bin\Debug\Core.pdb
+C:\Projects\Boogie\Source\Dafny\bin\Debug\ParserHelper.pdb
+C:\Projects\Boogie\Source\Dafny\bin\Debug\CodeContractsExtender.pdb
+C:\Projects\Boogie\Source\Dafny\bin\Debug\Graph.pdb
+C:\Projects\Boogie\Source\Dafny\obj\Debug\ResolveAssemblyReference.cache
+C:\Projects\Boogie\Source\Dafny\obj\Debug\DafnyPipeline.dll
+C:\Projects\Boogie\Source\Dafny\obj\Debug\DafnyPipeline.pdb

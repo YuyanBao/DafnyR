@@ -1,0 +1,61 @@
+// Dafny program verifier version 2.2.30705.1126, Copyright (c) 2003-2012, Microsoft.
+// Command Line Options: /compile:0 /print:out.bpl.tmp /dprint:out.dfy.tmp /tracePOs -nologo -logPrefix:dafny0 Superposition.dfy
+// Superposition.dfy
+
+
+module M0 {
+  class C {
+    method M(c: C, x: int, y: int)
+        returns (r: int)
+      requires 0 <= x && 0 <= y;
+      ensures r < 100;
+    {
+      if (c == null) {
+        assert c == null;
+      } else if (*) {
+        assert 0 <= x;
+      } else {
+        assert 0 <= y;
+      }
+      r := 8;
+    }
+
+    predicate P(x: int)
+      ensures true;
+      ensures x < 60 ==> P(x);
+    {
+      true
+    }
+
+    predicate Q(x: int)
+      ensures Q(x) ==> x < 60;
+    {
+      true
+    }
+
+    predicate R(x: int)
+      ensures R(x) ==> x < 60;
+    {
+      true
+    }
+  }
+}
+
+module M1 refines M0 {
+  class C {
+    method M ...
+    {
+      if ... {
+      } else if ... {
+      } else {
+      }
+    }
+
+    predicate P ...
+    {
+      false
+    }
+
+    predicate Q ...
+  }
+}

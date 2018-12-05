@@ -1,0 +1,6 @@
+C:\Projects\Boogie\Binaries\Dafny.exe.config
+C:\Projects\Boogie\Binaries\Dafny.exe
+C:\Projects\Boogie\Binaries\Dafny.pdb
+C:\Projects\Boogie\Source\DafnyDriver\obj\Debug\ResolveAssemblyReference.cache
+C:\Projects\Boogie\Source\DafnyDriver\obj\Debug\Dafny.exe
+C:\Projects\Boogie\Source\DafnyDriver\obj\Debug\Dafny.pdb

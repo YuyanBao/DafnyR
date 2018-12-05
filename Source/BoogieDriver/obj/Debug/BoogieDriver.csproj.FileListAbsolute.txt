@@ -1,0 +1,5 @@
+C:\Projects\Boogie\Binaries\Boogie.exe
+C:\Projects\Boogie\Binaries\Boogie.pdb
+C:\Projects\Boogie\Source\BoogieDriver\obj\Debug\ResolveAssemblyReference.cache
+C:\Projects\Boogie\Source\BoogieDriver\obj\Debug\Boogie.exe
+C:\Projects\Boogie\Source\BoogieDriver\obj\Debug\Boogie.pdb

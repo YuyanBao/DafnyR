@@ -1,0 +1,7 @@
+C:\Projects\Boogie\Source\ParserHelper\bin\Release\ParserHelper.dll
+C:\Projects\Boogie\Source\ParserHelper\bin\Release\ParserHelper.pdb
+C:\Projects\Boogie\Source\ParserHelper\bin\Release\CodeContractsExtender.dll
+C:\Projects\Boogie\Source\ParserHelper\bin\Release\CodeContractsExtender.pdb
+C:\Projects\Boogie\Source\ParserHelper\obj\Release\ResolveAssemblyReference.cache
+C:\Projects\Boogie\Source\ParserHelper\obj\Release\ParserHelper.dll
+C:\Projects\Boogie\Source\ParserHelper\obj\Release\ParserHelper.pdb

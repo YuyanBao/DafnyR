@@ -1,0 +1,1069 @@
+// Dafny program verifier version 2.2.30705.1126, Copyright (c) 2003-2012, Microsoft.
+// Command Line Options: /compile:0 /print:out.bpl.tmp /dprint:out.dfy.tmp /tracePOs -nologo -logPrefix:dafny0 Superposition.dfy
+
+const $$Language$Dafny: bool;
+
+axiom $$Language$Dafny;
+
+type ref;
+
+const null: ref;
+
+type Set T = [T]bool;
+
+function Set#Empty<T>() : Set T;
+
+axiom (forall<T> o: T :: { Set#Empty()[o] } !Set#Empty()[o]);
+
+function Set#Singleton<T>(T) : Set T;
+
+axiom (forall<T> r: T :: { Set#Singleton(r) } Set#Singleton(r)[r]);
+
+axiom (forall<T> r: T, o: T :: { Set#Singleton(r)[o] } Set#Singleton(r)[o] <==> r == o);
+
+function Set#UnionOne<T>(Set T, T) : Set T;
+
+axiom (forall<T> a: Set T, x: T, o: T :: { Set#UnionOne(a, x)[o] } Set#UnionOne(a, x)[o] <==> o == x || a[o]);
+
+axiom (forall<T> a: Set T, x: T :: { Set#UnionOne(a, x) } Set#UnionOne(a, x)[x]);
+
+axiom (forall<T> a: Set T, x: T, y: T :: { Set#UnionOne(a, x), a[y] } a[y] ==> Set#UnionOne(a, x)[y]);
+
+function Set#Union<T>(Set T, Set T) : Set T;
+
+axiom (forall<T> a: Set T, b: Set T, o: T :: { Set#Union(a, b)[o] } Set#Union(a, b)[o] <==> a[o] || b[o]);
+
+axiom (forall<T> a: Set T, b: Set T, y: T :: { Set#Union(a, b), a[y] } a[y] ==> Set#Union(a, b)[y]);
+
+axiom (forall<T> a: Set T, b: Set T, y: T :: { Set#Union(a, b), b[y] } b[y] ==> Set#Union(a, b)[y]);
+
+axiom (forall<T> a: Set T, b: Set T :: { Set#Union(a, b) } Set#Disjoint(a, b) ==> Set#Difference(Set#Union(a, b), a) == b && Set#Difference(Set#Union(a, b), b) == a);
+
+function Set#Intersection<T>(Set T, Set T) : Set T;
+
+axiom (forall<T> a: Set T, b: Set T, o: T :: { Set#Intersection(a, b)[o] } Set#Intersection(a, b)[o] <==> a[o] && b[o]);
+
+axiom (forall<T> a: Set T, b: Set T :: { Set#Union(Set#Union(a, b), b) } Set#Union(Set#Union(a, b), b) == Set#Union(a, b));
+
+axiom (forall<T> a: Set T, b: Set T :: { Set#Union(a, Set#Union(a, b)) } Set#Union(a, Set#Union(a, b)) == Set#Union(a, b));
+
+axiom (forall<T> a: Set T, b: Set T :: { Set#Intersection(Set#Intersection(a, b), b) } Set#Intersection(Set#Intersection(a, b), b) == Set#Intersection(a, b));
+
+axiom (forall<T> a: Set T, b: Set T :: { Set#Intersection(a, Set#Intersection(a, b)) } Set#Intersection(a, Set#Intersection(a, b)) == Set#Intersection(a, b));
+
+function Set#Difference<T>(Set T, Set T) : Set T;
+
+axiom (forall<T> a: Set T, b: Set T, o: T :: { Set#Difference(a, b)[o] } Set#Difference(a, b)[o] <==> a[o] && !b[o]);
+
+axiom (forall<T> a: Set T, b: Set T, y: T :: { Set#Difference(a, b), b[y] } b[y] ==> !Set#Difference(a, b)[y]);
+
+function Set#Subset<T>(Set T, Set T) : bool;
+
+axiom (forall<T> a: Set T, b: Set T :: { Set#Subset(a, b) } Set#Subset(a, b) <==> (forall o: T :: { a[o] } { b[o] } a[o] ==> b[o]));
+
+function Set#Equal<T>(Set T, Set T) : bool;
+
+axiom (forall<T> a: Set T, b: Set T :: { Set#Equal(a, b) } Set#Equal(a, b) <==> (forall o: T :: { a[o] } { b[o] } a[o] <==> b[o]));
+
+axiom (forall<T> a: Set T, b: Set T :: { Set#Equal(a, b) } Set#Equal(a, b) ==> a == b);
+
+function Set#Disjoint<T>(Set T, Set T) : bool;
+
+axiom (forall<T> a: Set T, b: Set T :: { Set#Disjoint(a, b) } Set#Disjoint(a, b) <==> (forall o: T :: { a[o] } { b[o] } !a[o] || !b[o]));
+
+function Set#Choose<T>(Set T, TickType) : T;
+
+axiom (forall<T> a: Set T, tick: TickType :: { Set#Choose(a, tick) } a != Set#Empty() ==> a[Set#Choose(a, tick)]);
+
+function Math#min(a: int, b: int) : int;
+
+axiom (forall a: int, b: int :: { Math#min(a, b) } a <= b <==> Math#min(a, b) == a);
+
+axiom (forall a: int, b: int :: { Math#min(a, b) } b <= a <==> Math#min(a, b) == b);
+
+axiom (forall a: int, b: int :: { Math#min(a, b) } Math#min(a, b) == a || Math#min(a, b) == b);
+
+function Math#clip(a: int) : int;
+
+axiom (forall a: int :: { Math#clip(a) } 0 <= a ==> Math#clip(a) == a);
+
+axiom (forall a: int :: { Math#clip(a) } a < 0 ==> Math#clip(a) == 0);
+
+type MultiSet T = [T]int;
+
+function $IsGoodMultiSet<T>(ms: MultiSet T) : bool;
+
+axiom (forall<T> ms: MultiSet T :: { $IsGoodMultiSet(ms) } $IsGoodMultiSet(ms) <==> (forall o: T :: { ms[o] } 0 <= ms[o]));
+
+function MultiSet#Empty<T>() : MultiSet T;
+
+axiom (forall<T> o: T :: { MultiSet#Empty()[o] } MultiSet#Empty()[o] == 0);
+
+function MultiSet#Singleton<T>(T) : MultiSet T;
+
+axiom (forall<T> r: T, o: T :: { MultiSet#Singleton(r)[o] } (MultiSet#Singleton(r)[o] == 1 <==> r == o) && (MultiSet#Singleton(r)[o] == 0 <==> r != o));
+
+axiom (forall<T> r: T :: { MultiSet#Singleton(r) } MultiSet#Singleton(r) == MultiSet#UnionOne(MultiSet#Empty(), r));
+
+function MultiSet#UnionOne<T>(MultiSet T, T) : MultiSet T;
+
+axiom (forall<T> a: MultiSet T, x: T, o: T :: { MultiSet#UnionOne(a, x)[o] } 0 < MultiSet#UnionOne(a, x)[o] <==> o == x || 0 < a[o]);
+
+axiom (forall<T> a: MultiSet T, x: T :: { MultiSet#UnionOne(a, x) } MultiSet#UnionOne(a, x)[x] == a[x] + 1);
+
+axiom (forall<T> a: MultiSet T, x: T, y: T :: { MultiSet#UnionOne(a, x), a[y] } 0 < a[y] ==> 0 < MultiSet#UnionOne(a, x)[y]);
+
+axiom (forall<T> a: MultiSet T, x: T, y: T :: { MultiSet#UnionOne(a, x), a[y] } x != y ==> a[y] == MultiSet#UnionOne(a, x)[y]);
+
+function MultiSet#Union<T>(MultiSet T, MultiSet T) : MultiSet T;
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T, o: T :: { MultiSet#Union(a, b)[o] } MultiSet#Union(a, b)[o] == a[o] + b[o]);
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T, y: T :: { MultiSet#Union(a, b), a[y] } 0 < a[y] ==> 0 < MultiSet#Union(a, b)[y]);
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T, y: T :: { MultiSet#Union(a, b), b[y] } 0 < b[y] ==> 0 < MultiSet#Union(a, b)[y]);
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T :: { MultiSet#Union(a, b) } MultiSet#Difference(MultiSet#Union(a, b), a) == b && MultiSet#Difference(MultiSet#Union(a, b), b) == a);
+
+function MultiSet#Intersection<T>(MultiSet T, MultiSet T) : MultiSet T;
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T, o: T :: { MultiSet#Intersection(a, b)[o] } MultiSet#Intersection(a, b)[o] == Math#min(a[o], b[o]));
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T :: { MultiSet#Intersection(MultiSet#Intersection(a, b), b) } MultiSet#Intersection(MultiSet#Intersection(a, b), b) == MultiSet#Intersection(a, b));
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T :: { MultiSet#Intersection(a, MultiSet#Intersection(a, b)) } MultiSet#Intersection(a, MultiSet#Intersection(a, b)) == MultiSet#Intersection(a, b));
+
+function MultiSet#Difference<T>(MultiSet T, MultiSet T) : MultiSet T;
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T, o: T :: { MultiSet#Difference(a, b)[o] } MultiSet#Difference(a, b)[o] == Math#clip(a[o] - b[o]));
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T, y: T :: { MultiSet#Difference(a, b), b[y], a[y] } a[y] <= b[y] ==> MultiSet#Difference(a, b)[y] == 0);
+
+function MultiSet#Subset<T>(MultiSet T, MultiSet T) : bool;
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T :: { MultiSet#Subset(a, b) } MultiSet#Subset(a, b) <==> (forall o: T :: { a[o] } { b[o] } a[o] <= b[o]));
+
+function MultiSet#Equal<T>(MultiSet T, MultiSet T) : bool;
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T :: { MultiSet#Equal(a, b) } MultiSet#Equal(a, b) <==> (forall o: T :: { a[o] } { b[o] } a[o] == b[o]));
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T :: { MultiSet#Equal(a, b) } MultiSet#Equal(a, b) ==> a == b);
+
+function MultiSet#Disjoint<T>(MultiSet T, MultiSet T) : bool;
+
+axiom (forall<T> a: MultiSet T, b: MultiSet T :: { MultiSet#Disjoint(a, b) } MultiSet#Disjoint(a, b) <==> (forall o: T :: { a[o] } { b[o] } a[o] == 0 || b[o] == 0));
+
+function MultiSet#FromSet<T>(Set T) : MultiSet T;
+
+axiom (forall<T> s: Set T, a: T :: { MultiSet#FromSet(s)[a] } (MultiSet#FromSet(s)[a] == 0 <==> !s[a]) && (MultiSet#FromSet(s)[a] == 1 <==> s[a]));
+
+function MultiSet#FromSeq<T>(Seq T) : MultiSet T;
+
+axiom (forall<T> s: Seq T :: { MultiSet#FromSeq(s) } $IsGoodMultiSet(MultiSet#FromSeq(s)));
+
+axiom (forall<T> s: Seq T, v: T :: { MultiSet#FromSeq(Seq#Build(s, v)) } MultiSet#FromSeq(Seq#Build(s, v)) == MultiSet#UnionOne(MultiSet#FromSeq(s), v));
+
+axiom (forall<T>  :: MultiSet#FromSeq(Seq#Empty(): Seq T) == MultiSet#Empty(): MultiSet T);
+
+axiom (forall<T> a: Seq T, b: Seq T :: { MultiSet#FromSeq(Seq#Append(a, b)) } MultiSet#FromSeq(Seq#Append(a, b)) == MultiSet#Union(MultiSet#FromSeq(a), MultiSet#FromSeq(b)));
+
+axiom (forall<T> s: Seq T, i: int, v: T, x: T :: { MultiSet#FromSeq(Seq#Update(s, i, v))[x] } 0 <= i && i < Seq#Length(s) ==> MultiSet#FromSeq(Seq#Update(s, i, v))[x] == MultiSet#Union(MultiSet#Difference(MultiSet#FromSeq(s), MultiSet#Singleton(Seq#Index(s, i))), MultiSet#Singleton(v))[x]);
+
+axiom (forall<T> s: Seq T, x: T :: { MultiSet#FromSeq(s)[x] } (exists i: int :: { Seq#Index(s, i) } 0 <= i && i < Seq#Length(s) && x == Seq#Index(s, i)) <==> 0 < MultiSet#FromSeq(s)[x]);
+
+type Seq _;
+
+function Seq#Length<T>(Seq T) : int;
+
+axiom (forall<T> s: Seq T :: { Seq#Length(s) } 0 <= Seq#Length(s));
+
+function Seq#Empty<T>() : Seq T;
+
+axiom (forall<T>  :: Seq#Length(Seq#Empty(): Seq T) == 0);
+
+axiom (forall<T> s: Seq T :: { Seq#Length(s) } Seq#Length(s) == 0 ==> s == Seq#Empty());
+
+function Seq#Singleton<T>(T) : Seq T;
+
+axiom (forall<T> t: T :: { Seq#Length(Seq#Singleton(t)) } Seq#Length(Seq#Singleton(t)) == 1);
+
+function Seq#Build<T>(s: Seq T, val: T) : Seq T;
+
+axiom (forall<T> s: Seq T, v: T :: { Seq#Length(Seq#Build(s, v)) } Seq#Length(Seq#Build(s, v)) == 1 + Seq#Length(s));
+
+axiom (forall<T> s: Seq T, i: int, v: T :: { Seq#Index(Seq#Build(s, v), i) } (i == Seq#Length(s) ==> Seq#Index(Seq#Build(s, v), i) == v) && (i != Seq#Length(s) ==> Seq#Index(Seq#Build(s, v), i) == Seq#Index(s, i)));
+
+function Seq#Append<T>(Seq T, Seq T) : Seq T;
+
+axiom (forall<T> s0: Seq T, s1: Seq T :: { Seq#Length(Seq#Append(s0, s1)) } Seq#Length(Seq#Append(s0, s1)) == Seq#Length(s0) + Seq#Length(s1));
+
+function Seq#Index<T>(Seq T, int) : T;
+
+axiom (forall<T> t: T :: { Seq#Index(Seq#Singleton(t), 0) } Seq#Index(Seq#Singleton(t), 0) == t);
+
+axiom (forall<T> s0: Seq T, s1: Seq T, n: int :: { Seq#Index(Seq#Append(s0, s1), n) } (n < Seq#Length(s0) ==> Seq#Index(Seq#Append(s0, s1), n) == Seq#Index(s0, n)) && (Seq#Length(s0) <= n ==> Seq#Index(Seq#Append(s0, s1), n) == Seq#Index(s1, n - Seq#Length(s0))));
+
+function Seq#Update<T>(Seq T, int, T) : Seq T;
+
+axiom (forall<T> s: Seq T, i: int, v: T :: { Seq#Length(Seq#Update(s, i, v)) } 0 <= i && i < Seq#Length(s) ==> Seq#Length(Seq#Update(s, i, v)) == Seq#Length(s));
+
+axiom (forall<T> s: Seq T, i: int, v: T, n: int :: { Seq#Index(Seq#Update(s, i, v), n) } 0 <= n && n < Seq#Length(s) ==> (i == n ==> Seq#Index(Seq#Update(s, i, v), n) == v) && (i != n ==> Seq#Index(Seq#Update(s, i, v), n) == Seq#Index(s, n)));
+
+function Seq#Contains<T>(Seq T, T) : bool;
+
+axiom (forall<T> s: Seq T, x: T :: { Seq#Contains(s, x) } Seq#Contains(s, x) <==> (exists i: int :: { Seq#Index(s, i) } 0 <= i && i < Seq#Length(s) && Seq#Index(s, i) == x));
+
+axiom (forall x: ref :: { Seq#Contains(Seq#Empty(), x) } !Seq#Contains(Seq#Empty(), x));
+
+axiom (forall<T> s0: Seq T, s1: Seq T, x: T :: { Seq#Contains(Seq#Append(s0, s1), x) } Seq#Contains(Seq#Append(s0, s1), x) <==> Seq#Contains(s0, x) || Seq#Contains(s1, x));
+
+axiom (forall<T> s: Seq T, v: T, x: T :: { Seq#Contains(Seq#Build(s, v), x) } Seq#Contains(Seq#Build(s, v), x) <==> v == x || Seq#Contains(s, x));
+
+axiom (forall<T> s: Seq T, n: int, x: T :: { Seq#Contains(Seq#Take(s, n), x) } Seq#Contains(Seq#Take(s, n), x) <==> (exists i: int :: { Seq#Index(s, i) } 0 <= i && i < n && i < Seq#Length(s) && Seq#Index(s, i) == x));
+
+axiom (forall<T> s: Seq T, n: int, x: T :: { Seq#Contains(Seq#Drop(s, n), x) } Seq#Contains(Seq#Drop(s, n), x) <==> (exists i: int :: { Seq#Index(s, i) } 0 <= n && n <= i && i < Seq#Length(s) && Seq#Index(s, i) == x));
+
+function Seq#Equal<T>(Seq T, Seq T) : bool;
+
+axiom (forall<T> s0: Seq T, s1: Seq T :: { Seq#Equal(s0, s1) } Seq#Equal(s0, s1) <==> Seq#Length(s0) == Seq#Length(s1) && (forall j: int :: { Seq#Index(s0, j) } { Seq#Index(s1, j) } 0 <= j && j < Seq#Length(s0) ==> Seq#Index(s0, j) == Seq#Index(s1, j)));
+
+axiom (forall<T> a: Seq T, b: Seq T :: { Seq#Equal(a, b) } Seq#Equal(a, b) ==> a == b);
+
+function Seq#SameUntil<T>(Seq T, Seq T, int) : bool;
+
+axiom (forall<T> s0: Seq T, s1: Seq T, n: int :: { Seq#SameUntil(s0, s1, n) } Seq#SameUntil(s0, s1, n) <==> (forall j: int :: { Seq#Index(s0, j) } { Seq#Index(s1, j) } 0 <= j && j < n ==> Seq#Index(s0, j) == Seq#Index(s1, j)));
+
+function Seq#Take<T>(s: Seq T, howMany: int) : Seq T;
+
+axiom (forall<T> s: Seq T, n: int :: { Seq#Length(Seq#Take(s, n)) } 0 <= n ==> (n <= Seq#Length(s) ==> Seq#Length(Seq#Take(s, n)) == n) && (Seq#Length(s) < n ==> Seq#Length(Seq#Take(s, n)) == Seq#Length(s)));
+
+axiom (forall<T> s: Seq T, n: int, j: int :: {:weight 25} { Seq#Index(Seq#Take(s, n), j) } 0 <= j && j < n && j < Seq#Length(s) ==> Seq#Index(Seq#Take(s, n), j) == Seq#Index(s, j));
+
+function Seq#Drop<T>(s: Seq T, howMany: int) : Seq T;
+
+axiom (forall<T> s: Seq T, n: int :: { Seq#Length(Seq#Drop(s, n)) } 0 <= n ==> (n <= Seq#Length(s) ==> Seq#Length(Seq#Drop(s, n)) == Seq#Length(s) - n) && (Seq#Length(s) < n ==> Seq#Length(Seq#Drop(s, n)) == 0));
+
+axiom (forall<T> s: Seq T, n: int, j: int :: {:weight 25} { Seq#Index(Seq#Drop(s, n), j) } 0 <= n && 0 <= j && j < Seq#Length(s) - n ==> Seq#Index(Seq#Drop(s, n), j) == Seq#Index(s, j + n));
+
+axiom (forall<T> s: Seq T, t: Seq T :: { Seq#Append(s, t) } Seq#Take(Seq#Append(s, t), Seq#Length(s)) == s && Seq#Drop(Seq#Append(s, t), Seq#Length(s)) == t);
+
+function Seq#FromArray(h: HeapType, a: ref) : Seq BoxType;
+
+axiom (forall h: HeapType, a: ref :: { Seq#Length(Seq#FromArray(h, a)) } Seq#Length(Seq#FromArray(h, a)) == _System.array.Length(a));
+
+axiom (forall h: HeapType, a: ref :: { Seq#FromArray(h, a): Seq BoxType } (forall i: int :: 0 <= i && i < Seq#Length(Seq#FromArray(h, a)) ==> Seq#Index(Seq#FromArray(h, a), i) == read(h, a, IndexField(i))));
+
+axiom (forall<alpha> h: HeapType, o: ref, f: Field alpha, v: alpha, a: ref :: { Seq#FromArray(update(h, o, f, v), a) } o != a ==> Seq#FromArray(update(h, o, f, v), a) == Seq#FromArray(h, a));
+
+axiom (forall h: HeapType, i: int, v: BoxType, a: ref :: { Seq#FromArray(update(h, a, IndexField(i), v), a) } 0 <= i && i < _System.array.Length(a) ==> Seq#FromArray(update(h, a, IndexField(i), v), a) == Seq#Update(Seq#FromArray(h, a), i, v));
+
+axiom (forall<T> s: Seq T, i: int, v: T, n: int :: { Seq#Take(Seq#Update(s, i, v), n) } 0 <= i && i < n && n <= Seq#Length(s) ==> Seq#Take(Seq#Update(s, i, v), n) == Seq#Update(Seq#Take(s, n), i, v));
+
+axiom (forall<T> s: Seq T, i: int, v: T, n: int :: { Seq#Take(Seq#Update(s, i, v), n) } n <= i && i < Seq#Length(s) ==> Seq#Take(Seq#Update(s, i, v), n) == Seq#Take(s, n));
+
+axiom (forall<T> s: Seq T, i: int, v: T, n: int :: { Seq#Drop(Seq#Update(s, i, v), n) } 0 <= n && n <= i && i < Seq#Length(s) ==> Seq#Drop(Seq#Update(s, i, v), n) == Seq#Update(Seq#Drop(s, n), i - n, v));
+
+axiom (forall<T> s: Seq T, i: int, v: T, n: int :: { Seq#Drop(Seq#Update(s, i, v), n) } 0 <= i && i < n && n < Seq#Length(s) ==> Seq#Drop(Seq#Update(s, i, v), n) == Seq#Drop(s, n));
+
+axiom (forall h: HeapType, a: ref, n0: int, n1: int :: { Seq#Take(Seq#FromArray(h, a), n0), Seq#Take(Seq#FromArray(h, a), n1) } n0 + 1 == n1 && 0 <= n0 && n1 <= _System.array.Length(a) ==> Seq#Take(Seq#FromArray(h, a), n1) == Seq#Build(Seq#Take(Seq#FromArray(h, a), n0), read(h, a, IndexField(n0): Field BoxType)));
+
+axiom (forall<T> s: Seq T, v: T, n: int :: { Seq#Drop(Seq#Build(s, v), n) } 0 <= n && n <= Seq#Length(s) ==> Seq#Drop(Seq#Build(s, v), n) == Seq#Build(Seq#Drop(s, n), v));
+
+axiom Seq#Take(Seq#Empty(): Seq BoxType, 0) == Seq#Empty();
+
+axiom Seq#Drop(Seq#Empty(): Seq BoxType, 0) == Seq#Empty();
+
+type Map _ _;
+
+function Map#Domain<U,V>(Map U V) : [U]bool;
+
+function Map#Elements<U,V>(Map U V) : [U]V;
+
+function Map#Empty<U,V>() : Map U V;
+
+axiom (forall<U,V> u: U :: { Map#Domain(Map#Empty(): Map U V)[u] } !Map#Domain(Map#Empty(): Map U V)[u]);
+
+function Map#Glue<U,V>([U]bool, [U]V) : Map U V;
+
+axiom (forall<U,V> a: [U]bool, b: [U]V :: { Map#Domain(Map#Glue(a, b)) } Map#Domain(Map#Glue(a, b)) == a);
+
+axiom (forall<U,V> a: [U]bool, b: [U]V :: { Map#Elements(Map#Glue(a, b)) } Map#Elements(Map#Glue(a, b)) == b);
+
+function Map#Build<U,V>(Map U V, U, V) : Map U V;
+
+axiom (forall<U,V> m: Map U V, u: U, u': U, v: V :: { Map#Domain(Map#Build(m, u, v))[u'] } { Map#Elements(Map#Build(m, u, v))[u'] } (u' == u ==> Map#Domain(Map#Build(m, u, v))[u'] && Map#Elements(Map#Build(m, u, v))[u'] == v) && (u' != u ==> Map#Domain(Map#Build(m, u, v))[u'] == Map#Domain(m)[u'] && Map#Elements(Map#Build(m, u, v))[u'] == Map#Elements(m)[u']));
+
+function Map#Equal<U,V>(Map U V, Map U V) : bool;
+
+axiom (forall<U,V> m: Map U V, m': Map U V :: { Map#Equal(m, m') } Map#Equal(m, m') <==> (forall u: U :: Map#Domain(m)[u] == Map#Domain(m')[u]) && (forall u: U :: Map#Domain(m)[u] ==> Map#Elements(m)[u] == Map#Elements(m')[u]));
+
+axiom (forall<U,V> m: Map U V, m': Map U V :: { Map#Equal(m, m') } Map#Equal(m, m') ==> m == m');
+
+function Map#Disjoint<U,V>(Map U V, Map U V) : bool;
+
+axiom (forall<U,V> m: Map U V, m': Map U V :: { Map#Disjoint(m, m') } Map#Disjoint(m, m') <==> (forall o: U :: { Map#Domain(m)[o] } { Map#Domain(m')[o] } !Map#Domain(m)[o] || !Map#Domain(m')[o]));
+
+type BoxType;
+
+function $Box<T>(T) : BoxType;
+
+function $Unbox<T>(BoxType) : T;
+
+axiom (forall<T> x: T :: { $Box(x) } $Unbox($Box(x)) == x);
+
+axiom (forall b: BoxType :: { $Unbox(b): int } $Box($Unbox(b): int) == b);
+
+axiom (forall b: BoxType :: { $Unbox(b): ref } $Box($Unbox(b): ref) == b);
+
+axiom (forall b: BoxType :: { $Unbox(b): Set BoxType } $Box($Unbox(b): Set BoxType) == b);
+
+axiom (forall b: BoxType :: { $Unbox(b): Seq BoxType } $Box($Unbox(b): Seq BoxType) == b);
+
+axiom (forall b: BoxType :: { $Unbox(b): Map BoxType BoxType } $Box($Unbox(b): Map BoxType BoxType) == b);
+
+axiom (forall b: BoxType :: { $Unbox(b): DatatypeType } $Box($Unbox(b): DatatypeType) == b);
+
+function $IsCanonicalBoolBox(BoxType) : bool;
+
+axiom $IsCanonicalBoolBox($Box(false)) && $IsCanonicalBoolBox($Box(true));
+
+axiom (forall b: BoxType :: { $Unbox(b): bool } $IsCanonicalBoolBox(b) ==> $Box($Unbox(b): bool) == b);
+
+type ClassName;
+
+const unique class._System.int: ClassName;
+
+const unique class._System.bool: ClassName;
+
+const unique class._System.set: ClassName;
+
+const unique class._System.seq: ClassName;
+
+const unique class._System.multiset: ClassName;
+
+const unique class._System.array: ClassName;
+
+function dtype(ref) : ClassName;
+
+function TypeParams(ref, int) : ClassName;
+
+function TypeTuple(a: ClassName, b: ClassName) : ClassName;
+
+function TypeTupleCar(ClassName) : ClassName;
+
+function TypeTupleCdr(ClassName) : ClassName;
+
+axiom (forall a: ClassName, b: ClassName :: { TypeTuple(a, b) } TypeTupleCar(TypeTuple(a, b)) == a && TypeTupleCdr(TypeTuple(a, b)) == b);
+
+type DatatypeType;
+
+function DtType(DatatypeType) : ClassName;
+
+function DtTypeParams(DatatypeType, int) : ClassName;
+
+type DtCtorId;
+
+function DatatypeCtorId(DatatypeType) : DtCtorId;
+
+function DtRank(DatatypeType) : int;
+
+const $ModuleContextHeight: int;
+
+const $FunctionContextHeight: int;
+
+const $InMethodContext: bool;
+
+type Field _;
+
+function FDim<T>(Field T) : int;
+
+function IndexField(int) : Field BoxType;
+
+axiom (forall i: int :: { IndexField(i) } FDim(IndexField(i)) == 1);
+
+function IndexField_Inverse<T>(Field T) : int;
+
+axiom (forall i: int :: { IndexField(i) } IndexField_Inverse(IndexField(i)) == i);
+
+function MultiIndexField(Field BoxType, int) : Field BoxType;
+
+axiom (forall f: Field BoxType, i: int :: { MultiIndexField(f, i) } FDim(MultiIndexField(f, i)) == FDim(f) + 1);
+
+function MultiIndexField_Inverse0<T>(Field T) : Field T;
+
+function MultiIndexField_Inverse1<T>(Field T) : int;
+
+axiom (forall f: Field BoxType, i: int :: { MultiIndexField(f, i) } MultiIndexField_Inverse0(MultiIndexField(f, i)) == f && MultiIndexField_Inverse1(MultiIndexField(f, i)) == i);
+
+function DeclType<T>(Field T) : ClassName;
+
+type NameFamily;
+
+function DeclName<T>(Field T) : NameFamily;
+
+function FieldOfDecl<alpha>(ClassName, NameFamily) : Field alpha;
+
+axiom (forall<T> cl: ClassName, nm: NameFamily :: { FieldOfDecl(cl, nm): Field T } DeclType(FieldOfDecl(cl, nm): Field T) == cl && DeclName(FieldOfDecl(cl, nm): Field T) == nm);
+
+const unique alloc: Field bool;
+
+axiom FDim(alloc) == 0;
+
+function DtAlloc(DatatypeType, HeapType) : bool;
+
+axiom (forall h: HeapType, k: HeapType, d: DatatypeType :: { $HeapSucc(h, k), DtAlloc(d, h) } { $HeapSucc(h, k), DtAlloc(d, k) } $HeapSucc(h, k) ==> DtAlloc(d, h) ==> DtAlloc(d, k));
+
+function GenericAlloc(BoxType, HeapType) : bool;
+
+axiom (forall h: HeapType, k: HeapType, d: BoxType :: { $HeapSucc(h, k), GenericAlloc(d, h) } { $HeapSucc(h, k), GenericAlloc(d, k) } $HeapSucc(h, k) ==> GenericAlloc(d, h) ==> GenericAlloc(d, k));
+
+axiom (forall b: BoxType, h: HeapType :: { GenericAlloc(b, h), h[$Unbox(b): ref, alloc] } GenericAlloc(b, h) ==> $Unbox(b): ref == null || h[$Unbox(b): ref, alloc]);
+
+axiom (forall b: BoxType, h: HeapType, i: int :: { GenericAlloc(b, h), Seq#Index($Unbox(b): Seq BoxType, i) } GenericAlloc(b, h) && 0 <= i && i < Seq#Length($Unbox(b): Seq BoxType) ==> GenericAlloc(Seq#Index($Unbox(b): Seq BoxType, i), h));
+
+axiom (forall b: BoxType, h: HeapType, i: BoxType :: { GenericAlloc(b, h), Map#Domain($Unbox(b): Map BoxType BoxType)[i] } GenericAlloc(b, h) && Map#Domain($Unbox(b): Map BoxType BoxType)[i] ==> GenericAlloc(Map#Elements($Unbox(b): Map BoxType BoxType)[i], h));
+
+axiom (forall b: BoxType, h: HeapType, t: BoxType :: { GenericAlloc(b, h), Map#Domain($Unbox(b): Map BoxType BoxType)[t] } GenericAlloc(b, h) && Map#Domain($Unbox(b): Map BoxType BoxType)[t] ==> GenericAlloc(t, h));
+
+axiom (forall b: BoxType, h: HeapType, t: BoxType :: { GenericAlloc(b, h), ($Unbox(b): Set BoxType)[t] } GenericAlloc(b, h) && ($Unbox(b): Set BoxType)[t] ==> GenericAlloc(t, h));
+
+axiom (forall b: BoxType, h: HeapType :: { GenericAlloc(b, h), DtType($Unbox(b): DatatypeType) } GenericAlloc(b, h) ==> DtAlloc($Unbox(b): DatatypeType, h));
+
+axiom (forall b: bool, h: HeapType :: $IsGoodHeap(h) ==> GenericAlloc($Box(b), h));
+
+axiom (forall x: int, h: HeapType :: $IsGoodHeap(h) ==> GenericAlloc($Box(x), h));
+
+axiom (forall r: ref, h: HeapType :: { GenericAlloc($Box(r), h) } $IsGoodHeap(h) && (r == null || h[r, alloc]) ==> GenericAlloc($Box(r), h));
+
+axiom (forall r: ref, f: Field BoxType, h: HeapType :: { GenericAlloc(read(h, r, f), h) } $IsGoodHeap(h) && r != null && read(h, r, alloc) ==> GenericAlloc(read(h, r, f), h));
+
+function _System.array.Length(a: ref) : int;
+
+axiom (forall o: ref :: 0 <= _System.array.Length(o));
+
+type HeapType = <alpha>[ref,Field alpha]alpha;
+
+function {:inline true} read<alpha>(H: HeapType, r: ref, f: Field alpha) : alpha
+{
+  H[r, f]
+}
+
+function {:inline true} update<alpha>(H: HeapType, r: ref, f: Field alpha, v: alpha) : HeapType
+{
+  H[r, f := v]
+}
+
+function $IsGoodHeap(HeapType) : bool;
+
+var $Heap: HeapType where $IsGoodHeap($Heap);
+
+function $HeapSucc(HeapType, HeapType) : bool;
+
+axiom (forall<alpha> h: HeapType, r: ref, f: Field alpha, x: alpha :: { update(h, r, f, x) } $IsGoodHeap(update(h, r, f, x)) ==> $HeapSucc(h, update(h, r, f, x)));
+
+axiom (forall a: HeapType, b: HeapType, c: HeapType :: { $HeapSucc(a, b), $HeapSucc(b, c) } $HeapSucc(a, b) && $HeapSucc(b, c) ==> $HeapSucc(a, c));
+
+axiom (forall h: HeapType, k: HeapType :: { $HeapSucc(h, k) } $HeapSucc(h, k) ==> (forall o: ref :: { read(k, o, alloc) } read(h, o, alloc) ==> read(k, o, alloc)));
+
+procedure $YieldHavoc(this: ref, rds: Set BoxType, nw: Set BoxType);
+  modifies $Heap;
+  ensures (forall<alpha> $o: ref, $f: Field alpha :: { read($Heap, $o, $f) } $o != null && read(old($Heap), $o, alloc) ==> $o == this || rds[$Box($o)] || nw[$Box($o)] ==> read($Heap, $o, $f) == read(old($Heap), $o, $f));
+  ensures $HeapSucc(old($Heap), $Heap);
+
+
+
+procedure $IterHavoc0(this: ref, rds: Set BoxType, modi: Set BoxType);
+  modifies $Heap;
+  ensures (forall<alpha> $o: ref, $f: Field alpha :: { read($Heap, $o, $f) } $o != null && read(old($Heap), $o, alloc) ==> rds[$Box($o)] && !modi[$Box($o)] && $o != this ==> read($Heap, $o, $f) == read(old($Heap), $o, $f));
+  ensures $HeapSucc(old($Heap), $Heap);
+
+
+
+procedure $IterHavoc1(this: ref, modi: Set BoxType, nw: Set BoxType);
+  modifies $Heap;
+  ensures (forall<alpha> $o: ref, $f: Field alpha :: { read($Heap, $o, $f) } $o != null && read(old($Heap), $o, alloc) ==> read($Heap, $o, $f) == read(old($Heap), $o, $f) || $o == this || modi[$Box($o)] || nw[$Box($o)]);
+  ensures $HeapSucc(old($Heap), $Heap);
+
+
+
+procedure $IterCollectNewObjects(prevHeap: HeapType, newHeap: HeapType, this: ref, NW: Field (Set BoxType)) returns (s: Set BoxType);
+  ensures (forall bx: BoxType :: { s[bx] } s[bx] <==> read(newHeap, this, NW)[bx] || ($Unbox(bx) != null && !read(prevHeap, $Unbox(bx): ref, alloc) && read(newHeap, $Unbox(bx): ref, alloc)));
+
+
+
+type TickType;
+
+var $Tick: TickType;
+
+const unique class._System.object: ClassName;
+
+const unique class._0_M0.C: ClassName;
+
+procedure CheckWellformed$$_0_M0.C.M(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C, c#0: ref where c#0 == null || (read($Heap, c#0, alloc) && dtype(c#0) == class._0_M0.C), x#1: int, y#2: int) returns (r#3: int);
+  free requires 0 == $ModuleContextHeight && $InMethodContext;
+  modifies $Heap, $Tick;
+
+
+
+implementation CheckWellformed$$_0_M0.C.M(this: ref, c#0: ref, x#1: int, y#2: int) returns (r#3: int)
+{
+  var $_Frame: <beta>[ref,Field beta]bool;
+
+    $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && read($Heap, $o, alloc) ==> false);
+    if (0 <= x#1)
+    {
+    }
+
+    assume 0 <= x#1 && 0 <= y#2;
+    havoc $Heap;
+    assume (forall<alpha> $o: ref, $f: Field alpha :: { read($Heap, $o, $f) } $o != null && read(old($Heap), $o, alloc) ==> read($Heap, $o, $f) == read(old($Heap), $o, $f));
+    assume $HeapSucc(old($Heap), $Heap);
+    havoc r#3;
+    assume r#3 < 100;
+}
+
+
+
+procedure _0_M0.C.M(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C, c#0: ref where c#0 == null || (read($Heap, c#0, alloc) && dtype(c#0) == class._0_M0.C), x#1: int, y#2: int) returns (r#3: int);
+  free requires 0 == $ModuleContextHeight && $InMethodContext;
+  requires 0 <= x#1;
+  requires 0 <= y#2;
+  modifies $Heap, $Tick;
+  ensures r#3 < 100;
+  // frame condition
+  free ensures (forall<alpha> $o: ref, $f: Field alpha :: { read($Heap, $o, $f) } $o != null && read(old($Heap), $o, alloc) ==> read($Heap, $o, $f) == read(old($Heap), $o, $f));
+  // boilerplate
+  free ensures $HeapSucc(old($Heap), $Heap);
+
+
+
+implementation _0_M0.C.M(this: ref, c#0: ref, x#1: int, y#2: int) returns (r#3: int)
+{
+  var $_Frame: <beta>[ref,Field beta]bool;
+
+    $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && read($Heap, $o, alloc) ==> false);
+    // ----- if statement ----- Superposition.dfy(7,7)
+    assume true;
+    if (c#0 == null)
+    {
+        // ----- assert statement ----- Superposition.dfy(8,9)
+        assume true;
+        assert c#0 == null;
+    }
+    else
+    {
+        // ----- if statement ----- Superposition.dfy(9,14)
+        if (*)
+        {
+            // ----- assert statement ----- Superposition.dfy(10,9)
+            assume true;
+            assert 0 <= x#1;
+        }
+        else
+        {
+            // ----- assert statement ----- Superposition.dfy(12,9)
+            assume true;
+            assert 0 <= y#2;
+        }
+    }
+
+    // ----- assignment statement ----- Superposition.dfy(14,9)
+    assume true;
+    assume true;
+    r#3 := 8;
+    assume {:captureState "Superposition.dfy(14,9)"} true;
+}
+
+
+
+function _0_M0.C.P($heap: HeapType, this: ref, x#4: int) : bool;
+
+function _0_M0.C.P#limited($heap: HeapType, this: ref, x#4: int) : bool;
+
+function _0_M0.C.P#2($heap: HeapType, this: ref, x#4: int) : bool;
+
+function _0_M0.C.P#canCall($heap: HeapType, this: ref, x#4: int) : bool;
+
+axiom (forall $Heap: HeapType, this: ref, x#4: int :: { _0_M0.C.P#2($Heap, this, x#4) } _0_M0.C.P#2($Heap, this, x#4) == _0_M0.C.P($Heap, this, x#4));
+
+axiom (forall $Heap: HeapType, this: ref, x#4: int :: { _0_M0.C.P($Heap, this, x#4) } _0_M0.C.P($Heap, this, x#4) == _0_M0.C.P#limited($Heap, this, x#4));
+
+// definition axiom for _0_M0.C.P (intra-module)
+axiom 0 == $ModuleContextHeight && (0 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#4: int :: { _0_M0.C.P($Heap, this, x#4) } _0_M0.C.P#canCall($Heap, this, x#4) || ((0 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> _0_M0.C.P($Heap, this, x#4) == true && true && (x#4 < 60 ==> _0_M0.C.P#limited($Heap, this, x#4)));
+
+// definition axiom for _0_M0.C.P (foreign modules)
+axiom 0 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#4: int :: { _0_M0.C.P($Heap, this, x#4) } _0_M0.C.P#canCall($Heap, this, x#4) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> (_0_M0.C.P($Heap, this, x#4) ==> true) && true && (x#4 < 60 ==> _0_M0.C.P#limited($Heap, this, x#4)));
+
+// definition axiom for _0_M0.C.P#2 (intra-module)
+axiom 0 == $ModuleContextHeight && (0 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#4: int :: { _0_M0.C.P#2($Heap, this, x#4) } _0_M0.C.P#canCall($Heap, this, x#4) || ((0 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> _0_M0.C.P#2($Heap, this, x#4) == true);
+
+// definition axiom for _0_M0.C.P#2 (foreign modules)
+axiom 0 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#4: int :: { _0_M0.C.P#2($Heap, this, x#4) } _0_M0.C.P#canCall($Heap, this, x#4) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> _0_M0.C.P#2($Heap, this, x#4) ==> true);
+
+// frame axiom for _0_M0.C.P
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#4: int :: { $HeapSucc($h0, $h1), _0_M0.C.P($h1, this, x#4) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._0_M0.C && read($h1, this, alloc) && dtype(this) == class._0_M0.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _0_M0.C.P($h0, this, x#4) == _0_M0.C.P($h1, this, x#4));
+
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#4: int :: { $HeapSucc($h0, $h1), _0_M0.C.P#limited($h1, this, x#4) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._0_M0.C && read($h1, this, alloc) && dtype(this) == class._0_M0.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _0_M0.C.P#limited($h0, this, x#4) == _0_M0.C.P#limited($h1, this, x#4));
+
+procedure CheckWellformed$$_0_M0.C.P(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C, x#4: int);
+  free requires 0 == $ModuleContextHeight && 0 == $FunctionContextHeight;
+  ensures true;
+  ensures x#4 < 60 ==> _0_M0.C.P#2($Heap, this, x#4);
+
+
+
+implementation CheckWellformed$$_0_M0.C.P(this: ref, x#4: int)
+{
+  var x#28: int;
+  var $_Frame: <beta>[ref,Field beta]bool;
+
+    if (*)
+    {
+        assume true;
+        if (x#4 < 60)
+        {
+            x#28 := x#4;
+            assert 0 <= x#4 || x#28 == x#4;
+            assert (this == this && x#4 == x#4) || x#28 < x#4;
+            assume (this == this && x#4 == x#4) || _0_M0.C.P#canCall($Heap, this, x#4);
+        }
+
+        assume x#4 < 60 ==> _0_M0.C.P($Heap, this, x#4);
+        assume false;
+    }
+    else
+    {
+        $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && read($Heap, $o, alloc) ==> false);
+        assume _0_M0.C.P($Heap, this, x#4) == true;
+        assume true;
+    }
+}
+
+
+
+function _0_M0.C.Q($heap: HeapType, this: ref, x#5: int) : bool;
+
+function _0_M0.C.Q#limited($heap: HeapType, this: ref, x#5: int) : bool;
+
+function _0_M0.C.Q#2($heap: HeapType, this: ref, x#5: int) : bool;
+
+function _0_M0.C.Q#canCall($heap: HeapType, this: ref, x#5: int) : bool;
+
+axiom (forall $Heap: HeapType, this: ref, x#5: int :: { _0_M0.C.Q#2($Heap, this, x#5) } _0_M0.C.Q#2($Heap, this, x#5) == _0_M0.C.Q($Heap, this, x#5));
+
+axiom (forall $Heap: HeapType, this: ref, x#5: int :: { _0_M0.C.Q($Heap, this, x#5) } _0_M0.C.Q($Heap, this, x#5) == _0_M0.C.Q#limited($Heap, this, x#5));
+
+// definition axiom for _0_M0.C.Q (intra-module)
+axiom 0 == $ModuleContextHeight && (1 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#5: int :: { _0_M0.C.Q($Heap, this, x#5) } _0_M0.C.Q#canCall($Heap, this, x#5) || ((1 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> _0_M0.C.Q($Heap, this, x#5) == true && (_0_M0.C.Q#limited($Heap, this, x#5) ==> x#5 < 60));
+
+// definition axiom for _0_M0.C.Q (foreign modules)
+axiom 0 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#5: int :: { _0_M0.C.Q($Heap, this, x#5) } _0_M0.C.Q#canCall($Heap, this, x#5) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> (_0_M0.C.Q($Heap, this, x#5) ==> true) && (_0_M0.C.Q#limited($Heap, this, x#5) ==> x#5 < 60));
+
+// definition axiom for _0_M0.C.Q#2 (intra-module)
+axiom 0 == $ModuleContextHeight && (1 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#5: int :: { _0_M0.C.Q#2($Heap, this, x#5) } _0_M0.C.Q#canCall($Heap, this, x#5) || ((1 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> _0_M0.C.Q#2($Heap, this, x#5) == true);
+
+// definition axiom for _0_M0.C.Q#2 (foreign modules)
+axiom 0 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#5: int :: { _0_M0.C.Q#2($Heap, this, x#5) } _0_M0.C.Q#canCall($Heap, this, x#5) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> _0_M0.C.Q#2($Heap, this, x#5) ==> true);
+
+// frame axiom for _0_M0.C.Q
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#5: int :: { $HeapSucc($h0, $h1), _0_M0.C.Q($h1, this, x#5) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._0_M0.C && read($h1, this, alloc) && dtype(this) == class._0_M0.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _0_M0.C.Q($h0, this, x#5) == _0_M0.C.Q($h1, this, x#5));
+
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#5: int :: { $HeapSucc($h0, $h1), _0_M0.C.Q#limited($h1, this, x#5) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._0_M0.C && read($h1, this, alloc) && dtype(this) == class._0_M0.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _0_M0.C.Q#limited($h0, this, x#5) == _0_M0.C.Q#limited($h1, this, x#5));
+
+procedure CheckWellformed$$_0_M0.C.Q(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C, x#5: int);
+  free requires 0 == $ModuleContextHeight && 1 == $FunctionContextHeight;
+  ensures _0_M0.C.Q($Heap, this, x#5) ==> x#5 < 60;
+
+
+
+implementation CheckWellformed$$_0_M0.C.Q(this: ref, x#5: int)
+{
+  var x#29: int;
+  var $_Frame: <beta>[ref,Field beta]bool;
+
+    if (*)
+    {
+        x#29 := x#5;
+        assert 0 <= x#5 || x#29 == x#5;
+        assert (this == this && x#5 == x#5) || x#29 < x#5;
+        assume (this == this && x#5 == x#5) || _0_M0.C.Q#canCall($Heap, this, x#5);
+        if (_0_M0.C.Q($Heap, this, x#5))
+        {
+        }
+
+        assume _0_M0.C.Q($Heap, this, x#5) ==> x#5 < 60;
+        assume false;
+    }
+    else
+    {
+        $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && read($Heap, $o, alloc) ==> false);
+        assume _0_M0.C.Q($Heap, this, x#5) == true;
+        assume true;
+    }
+}
+
+
+
+function _0_M0.C.R($heap: HeapType, this: ref, x#6: int) : bool;
+
+function _0_M0.C.R#limited($heap: HeapType, this: ref, x#6: int) : bool;
+
+function _0_M0.C.R#2($heap: HeapType, this: ref, x#6: int) : bool;
+
+function _0_M0.C.R#canCall($heap: HeapType, this: ref, x#6: int) : bool;
+
+axiom (forall $Heap: HeapType, this: ref, x#6: int :: { _0_M0.C.R#2($Heap, this, x#6) } _0_M0.C.R#2($Heap, this, x#6) == _0_M0.C.R($Heap, this, x#6));
+
+axiom (forall $Heap: HeapType, this: ref, x#6: int :: { _0_M0.C.R($Heap, this, x#6) } _0_M0.C.R($Heap, this, x#6) == _0_M0.C.R#limited($Heap, this, x#6));
+
+// definition axiom for _0_M0.C.R (intra-module)
+axiom 0 == $ModuleContextHeight && (2 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#6: int :: { _0_M0.C.R($Heap, this, x#6) } _0_M0.C.R#canCall($Heap, this, x#6) || ((2 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> _0_M0.C.R($Heap, this, x#6) == true && (_0_M0.C.R#limited($Heap, this, x#6) ==> x#6 < 60));
+
+// definition axiom for _0_M0.C.R (foreign modules)
+axiom 0 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#6: int :: { _0_M0.C.R($Heap, this, x#6) } _0_M0.C.R#canCall($Heap, this, x#6) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> (_0_M0.C.R($Heap, this, x#6) ==> true) && (_0_M0.C.R#limited($Heap, this, x#6) ==> x#6 < 60));
+
+// definition axiom for _0_M0.C.R#2 (intra-module)
+axiom 0 == $ModuleContextHeight && (2 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#6: int :: { _0_M0.C.R#2($Heap, this, x#6) } _0_M0.C.R#canCall($Heap, this, x#6) || ((2 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> _0_M0.C.R#2($Heap, this, x#6) == true);
+
+// definition axiom for _0_M0.C.R#2 (foreign modules)
+axiom 0 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#6: int :: { _0_M0.C.R#2($Heap, this, x#6) } _0_M0.C.R#canCall($Heap, this, x#6) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C) ==> _0_M0.C.R#2($Heap, this, x#6) ==> true);
+
+// frame axiom for _0_M0.C.R
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#6: int :: { $HeapSucc($h0, $h1), _0_M0.C.R($h1, this, x#6) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._0_M0.C && read($h1, this, alloc) && dtype(this) == class._0_M0.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _0_M0.C.R($h0, this, x#6) == _0_M0.C.R($h1, this, x#6));
+
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#6: int :: { $HeapSucc($h0, $h1), _0_M0.C.R#limited($h1, this, x#6) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._0_M0.C && read($h1, this, alloc) && dtype(this) == class._0_M0.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _0_M0.C.R#limited($h0, this, x#6) == _0_M0.C.R#limited($h1, this, x#6));
+
+procedure CheckWellformed$$_0_M0.C.R(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._0_M0.C, x#6: int);
+  free requires 0 == $ModuleContextHeight && 2 == $FunctionContextHeight;
+  ensures _0_M0.C.R($Heap, this, x#6) ==> x#6 < 60;
+
+
+
+implementation CheckWellformed$$_0_M0.C.R(this: ref, x#6: int)
+{
+  var x#30: int;
+  var $_Frame: <beta>[ref,Field beta]bool;
+
+    if (*)
+    {
+        x#30 := x#6;
+        assert 0 <= x#6 || x#30 == x#6;
+        assert (this == this && x#6 == x#6) || x#30 < x#6;
+        assume (this == this && x#6 == x#6) || _0_M0.C.R#canCall($Heap, this, x#6);
+        if (_0_M0.C.R($Heap, this, x#6))
+        {
+        }
+
+        assume _0_M0.C.R($Heap, this, x#6) ==> x#6 < 60;
+        assume false;
+    }
+    else
+    {
+        $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && read($Heap, $o, alloc) ==> false);
+        assume _0_M0.C.R($Heap, this, x#6) == true;
+        assume true;
+    }
+}
+
+
+
+const unique class._0_M0.__default: ClassName;
+
+const unique class._1_M1.C: ClassName;
+
+procedure CheckWellformed$$_1_M1.C.M(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C, c#14: ref where c#14 == null || (read($Heap, c#14, alloc) && dtype(c#14) == class._1_M1.C), x#15: int, y#16: int) returns (r#17: int);
+  free requires 1 == $ModuleContextHeight && $InMethodContext;
+  modifies $Heap, $Tick;
+
+
+
+implementation CheckWellformed$$_1_M1.C.M(this: ref, c#14: ref, x#15: int, y#16: int) returns (r#17: int)
+{
+  var $_Frame: <beta>[ref,Field beta]bool;
+
+    $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && read($Heap, $o, alloc) ==> false);
+    if (0 <= x#15)
+    {
+    }
+
+    assume 0 <= x#15 && 0 <= y#16;
+    havoc $Heap;
+    assume (forall<alpha> $o: ref, $f: Field alpha :: { read($Heap, $o, $f) } $o != null && read(old($Heap), $o, alloc) ==> read($Heap, $o, $f) == read(old($Heap), $o, $f));
+    assume $HeapSucc(old($Heap), $Heap);
+    havoc r#17;
+    assume r#17 < 100;
+}
+
+
+
+procedure _1_M1.C.M(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C, c#14: ref where c#14 == null || (read($Heap, c#14, alloc) && dtype(c#14) == class._1_M1.C), x#15: int, y#16: int) returns (r#17: int);
+  requires 0 <= x#15;
+  requires 0 <= y#16;
+  modifies $Heap, $Tick;
+  // user-defined postconditions
+  free ensures r#17 < 100;
+  // frame condition
+  free ensures (forall<alpha> $o: ref, $f: Field alpha :: { read($Heap, $o, $f) } $o != null && read(old($Heap), $o, alloc) ==> read($Heap, $o, $f) == read(old($Heap), $o, $f));
+  // boilerplate
+  free ensures $HeapSucc(old($Heap), $Heap);
+
+
+
+procedure RefinementCall_M1$$_1_M1.C.M(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C, c#14: ref where c#14 == null || (read($Heap, c#14, alloc) && dtype(c#14) == class._1_M1.C), x#15: int, y#16: int) returns (r#17: int);
+  modifies $Heap, $Tick;
+  // user-defined postconditions
+  free ensures r#17 < 100;
+  // frame condition
+  free ensures (forall<alpha> $o: ref, $f: Field alpha :: { read($Heap, $o, $f) } $o != null && read(old($Heap), $o, alloc) ==> read($Heap, $o, $f) == read(old($Heap), $o, $f));
+  // boilerplate
+  free ensures $HeapSucc(old($Heap), $Heap);
+
+
+
+procedure RefinementImpl_M1$$_1_M1.C.M(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C, c#14: ref where c#14 == null || (read($Heap, c#14, alloc) && dtype(c#14) == class._1_M1.C), x#15: int, y#16: int) returns (r#17: int);
+  free requires 1 == $ModuleContextHeight && $InMethodContext;
+  // user-defined preconditions
+  free requires 0 <= x#15 && 0 <= y#16;
+  modifies $Heap, $Tick;
+  // frame condition
+  free ensures (forall<alpha> $o: ref, $f: Field alpha :: { read($Heap, $o, $f) } $o != null && read(old($Heap), $o, alloc) ==> read($Heap, $o, $f) == read(old($Heap), $o, $f));
+  // boilerplate
+  free ensures $HeapSucc(old($Heap), $Heap);
+
+
+
+implementation RefinementImpl_M1$$_1_M1.C.M(this: ref, c#14: ref, x#15: int, y#16: int) returns (r#17: int)
+{
+  var $_Frame: <beta>[ref,Field beta]bool;
+
+    $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && read($Heap, $o, alloc) ==> false);
+    // ----- if statement ----- Superposition.dfy(42,7)
+    assume true;
+    if (c#14 == null)
+    {
+        // ----- assert statement ----- Superposition.dfy[M1](8,9)
+        assume true;
+        assume c#14 == null;
+    }
+    else
+    {
+        // ----- if statement ----- Superposition.dfy(43,12)
+        assume true;
+        if (x#15 == y#16)
+        {
+            // ----- assert statement ----- Superposition.dfy[M1](10,9)
+            assume true;
+            assume 0 <= x#15;
+        }
+        else
+        {
+            // ----- assert statement ----- Superposition.dfy[M1](12,9)
+            assume true;
+            assume 0 <= y#16;
+        }
+    }
+
+    // ----- assignment statement ----- Superposition.dfy[M1](14,9)
+    assume true;
+    assume true;
+    r#17 := 8;
+    assume {:captureState "Superposition.dfy[M1](14,9)"} true;
+}
+
+
+
+function _1_M1.C.P($heap: HeapType, this: ref, x#18: int) : bool;
+
+function _1_M1.C.P#limited($heap: HeapType, this: ref, x#18: int) : bool;
+
+function _1_M1.C.P#2($heap: HeapType, this: ref, x#18: int) : bool;
+
+function _1_M1.C.P#canCall($heap: HeapType, this: ref, x#18: int) : bool;
+
+axiom (forall $Heap: HeapType, this: ref, x#18: int :: { _1_M1.C.P#2($Heap, this, x#18) } _1_M1.C.P#2($Heap, this, x#18) == _1_M1.C.P($Heap, this, x#18));
+
+axiom (forall $Heap: HeapType, this: ref, x#18: int :: { _1_M1.C.P($Heap, this, x#18) } _1_M1.C.P($Heap, this, x#18) == _1_M1.C.P#limited($Heap, this, x#18));
+
+// definition axiom for _1_M1.C.P (intra-module)
+axiom 1 == $ModuleContextHeight && (0 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#18: int :: { _1_M1.C.P($Heap, this, x#18) } _1_M1.C.P#canCall($Heap, this, x#18) || ((0 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> (true ==> true) && _1_M1.C.P($Heap, this, x#18) == (true && false) && true && (x#18 < 60 ==> _1_M1.C.P#limited($Heap, this, x#18)));
+
+// definition axiom for _1_M1.C.P (foreign modules)
+axiom 1 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#18: int :: { _1_M1.C.P($Heap, this, x#18) } _1_M1.C.P#canCall($Heap, this, x#18) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> (true ==> true) && (_1_M1.C.P($Heap, this, x#18) ==> true && false) && true && (x#18 < 60 ==> _1_M1.C.P#limited($Heap, this, x#18)));
+
+// definition axiom for _1_M1.C.P#2 (intra-module)
+axiom 1 == $ModuleContextHeight && (0 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#18: int :: { _1_M1.C.P#2($Heap, this, x#18) } _1_M1.C.P#canCall($Heap, this, x#18) || ((0 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> _1_M1.C.P#2($Heap, this, x#18) == (true && false));
+
+// definition axiom for _1_M1.C.P#2 (foreign modules)
+axiom 1 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#18: int :: { _1_M1.C.P#2($Heap, this, x#18) } _1_M1.C.P#canCall($Heap, this, x#18) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> _1_M1.C.P#2($Heap, this, x#18) ==> true && false);
+
+// frame axiom for _1_M1.C.P
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#18: int :: { $HeapSucc($h0, $h1), _1_M1.C.P($h1, this, x#18) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._1_M1.C && read($h1, this, alloc) && dtype(this) == class._1_M1.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _1_M1.C.P($h0, this, x#18) == _1_M1.C.P($h1, this, x#18));
+
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#18: int :: { $HeapSucc($h0, $h1), _1_M1.C.P#limited($h1, this, x#18) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._1_M1.C && read($h1, this, alloc) && dtype(this) == class._1_M1.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _1_M1.C.P#limited($h0, this, x#18) == _1_M1.C.P#limited($h1, this, x#18));
+
+procedure CheckWellformed$$_1_M1.C.P(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C, x#18: int);
+  free requires 1 == $ModuleContextHeight && 0 == $FunctionContextHeight;
+  ensures x#18 < 60 ==> _1_M1.C.P#2($Heap, this, x#18);
+
+
+
+implementation CheckWellformed$$_1_M1.C.P(this: ref, x#18: int)
+{
+  var x#31: int;
+  var $_Frame: <beta>[ref,Field beta]bool;
+
+    if (*)
+    {
+        assume true;
+        if (x#18 < 60)
+        {
+            x#31 := x#18;
+            assume 0 <= x#18 || x#31 == x#18;
+            assume (this == this && x#18 == x#18) || x#31 < x#18;
+            assume (this == this && x#18 == x#18) || _1_M1.C.P#canCall($Heap, this, x#18);
+        }
+
+        assume x#18 < 60 ==> _1_M1.C.P($Heap, this, x#18);
+        assume false;
+    }
+    else
+    {
+        $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && read($Heap, $o, alloc) ==> false);
+        if (true)
+        {
+        }
+
+        assume _1_M1.C.P($Heap, this, x#18) == (true && false);
+        assume true ==> true;
+    }
+}
+
+
+
+function _1_M1.C.Q($heap: HeapType, this: ref, x#19: int) : bool;
+
+function _1_M1.C.Q#limited($heap: HeapType, this: ref, x#19: int) : bool;
+
+function _1_M1.C.Q#2($heap: HeapType, this: ref, x#19: int) : bool;
+
+function _1_M1.C.Q#canCall($heap: HeapType, this: ref, x#19: int) : bool;
+
+axiom (forall $Heap: HeapType, this: ref, x#19: int :: { _1_M1.C.Q#2($Heap, this, x#19) } _1_M1.C.Q#2($Heap, this, x#19) == _1_M1.C.Q($Heap, this, x#19));
+
+axiom (forall $Heap: HeapType, this: ref, x#19: int :: { _1_M1.C.Q($Heap, this, x#19) } _1_M1.C.Q($Heap, this, x#19) == _1_M1.C.Q#limited($Heap, this, x#19));
+
+// definition axiom for _1_M1.C.Q (intra-module)
+axiom 1 == $ModuleContextHeight && (1 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#19: int :: { _1_M1.C.Q($Heap, this, x#19) } _1_M1.C.Q#canCall($Heap, this, x#19) || ((1 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> _1_M1.C.Q($Heap, this, x#19) == true && (_1_M1.C.Q#limited($Heap, this, x#19) ==> x#19 < 60));
+
+// definition axiom for _1_M1.C.Q (foreign modules)
+axiom 1 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#19: int :: { _1_M1.C.Q($Heap, this, x#19) } _1_M1.C.Q#canCall($Heap, this, x#19) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> (_1_M1.C.Q($Heap, this, x#19) ==> true) && (_1_M1.C.Q#limited($Heap, this, x#19) ==> x#19 < 60));
+
+// definition axiom for _1_M1.C.Q#2 (intra-module)
+axiom 1 == $ModuleContextHeight && (1 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#19: int :: { _1_M1.C.Q#2($Heap, this, x#19) } _1_M1.C.Q#canCall($Heap, this, x#19) || ((1 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> _1_M1.C.Q#2($Heap, this, x#19) == true);
+
+// definition axiom for _1_M1.C.Q#2 (foreign modules)
+axiom 1 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#19: int :: { _1_M1.C.Q#2($Heap, this, x#19) } _1_M1.C.Q#canCall($Heap, this, x#19) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> _1_M1.C.Q#2($Heap, this, x#19) ==> true);
+
+// frame axiom for _1_M1.C.Q
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#19: int :: { $HeapSucc($h0, $h1), _1_M1.C.Q($h1, this, x#19) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._1_M1.C && read($h1, this, alloc) && dtype(this) == class._1_M1.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _1_M1.C.Q($h0, this, x#19) == _1_M1.C.Q($h1, this, x#19));
+
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#19: int :: { $HeapSucc($h0, $h1), _1_M1.C.Q#limited($h1, this, x#19) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._1_M1.C && read($h1, this, alloc) && dtype(this) == class._1_M1.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _1_M1.C.Q#limited($h0, this, x#19) == _1_M1.C.Q#limited($h1, this, x#19));
+
+procedure CheckWellformed$$_1_M1.C.Q(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C, x#19: int);
+  free requires 1 == $ModuleContextHeight && 1 == $FunctionContextHeight;
+
+
+
+implementation CheckWellformed$$_1_M1.C.Q(this: ref, x#19: int)
+{
+  var x#32: int;
+  var $_Frame: <beta>[ref,Field beta]bool;
+
+    if (*)
+    {
+        x#32 := x#19;
+        assume 0 <= x#19 || x#32 == x#19;
+        assume (this == this && x#19 == x#19) || x#32 < x#19;
+        assume (this == this && x#19 == x#19) || _1_M1.C.Q#canCall($Heap, this, x#19);
+        if (_1_M1.C.Q($Heap, this, x#19))
+        {
+        }
+
+        assume _1_M1.C.Q($Heap, this, x#19) ==> x#19 < 60;
+        assume false;
+    }
+    else
+    {
+        $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && read($Heap, $o, alloc) ==> false);
+        assume _1_M1.C.Q($Heap, this, x#19) == true;
+        assume true;
+    }
+}
+
+
+
+function _1_M1.C.R($heap: HeapType, this: ref, x#20: int) : bool;
+
+function _1_M1.C.R#limited($heap: HeapType, this: ref, x#20: int) : bool;
+
+function _1_M1.C.R#2($heap: HeapType, this: ref, x#20: int) : bool;
+
+function _1_M1.C.R#canCall($heap: HeapType, this: ref, x#20: int) : bool;
+
+axiom (forall $Heap: HeapType, this: ref, x#20: int :: { _1_M1.C.R#2($Heap, this, x#20) } _1_M1.C.R#2($Heap, this, x#20) == _1_M1.C.R($Heap, this, x#20));
+
+axiom (forall $Heap: HeapType, this: ref, x#20: int :: { _1_M1.C.R($Heap, this, x#20) } _1_M1.C.R($Heap, this, x#20) == _1_M1.C.R#limited($Heap, this, x#20));
+
+// definition axiom for _1_M1.C.R (intra-module)
+axiom 1 == $ModuleContextHeight && (2 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#20: int :: { _1_M1.C.R($Heap, this, x#20) } _1_M1.C.R#canCall($Heap, this, x#20) || ((2 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> _1_M1.C.R($Heap, this, x#20) == true && (_1_M1.C.R#limited($Heap, this, x#20) ==> x#20 < 60));
+
+// definition axiom for _1_M1.C.R (foreign modules)
+axiom 1 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#20: int :: { _1_M1.C.R($Heap, this, x#20) } _1_M1.C.R#canCall($Heap, this, x#20) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> (_1_M1.C.R($Heap, this, x#20) ==> true) && (_1_M1.C.R#limited($Heap, this, x#20) ==> x#20 < 60));
+
+// definition axiom for _1_M1.C.R#2 (intra-module)
+axiom 1 == $ModuleContextHeight && (2 <= $FunctionContextHeight || $InMethodContext) ==> (forall $Heap: HeapType, this: ref, x#20: int :: { _1_M1.C.R#2($Heap, this, x#20) } _1_M1.C.R#canCall($Heap, this, x#20) || ((2 != $FunctionContextHeight || $InMethodContext) && $IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> _1_M1.C.R#2($Heap, this, x#20) == true);
+
+// definition axiom for _1_M1.C.R#2 (foreign modules)
+axiom 1 < $ModuleContextHeight ==> (forall $Heap: HeapType, this: ref, x#20: int :: { _1_M1.C.R#2($Heap, this, x#20) } _1_M1.C.R#canCall($Heap, this, x#20) || ($IsGoodHeap($Heap) && this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C) ==> _1_M1.C.R#2($Heap, this, x#20) ==> true);
+
+// frame axiom for _1_M1.C.R
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#20: int :: { $HeapSucc($h0, $h1), _1_M1.C.R($h1, this, x#20) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._1_M1.C && read($h1, this, alloc) && dtype(this) == class._1_M1.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _1_M1.C.R($h0, this, x#20) == _1_M1.C.R($h1, this, x#20));
+
+axiom (forall $h0: HeapType, $h1: HeapType, this: ref, x#20: int :: { $HeapSucc($h0, $h1), _1_M1.C.R#limited($h1, this, x#20) } $IsGoodHeap($h0) && $IsGoodHeap($h1) && this != null && read($h0, this, alloc) && dtype(this) == class._1_M1.C && read($h1, this, alloc) && dtype(this) == class._1_M1.C && $HeapSucc($h0, $h1) ==> (forall<alpha> $o: ref, $f: Field alpha :: false ==> read($h0, $o, $f) == read($h1, $o, $f)) ==> _1_M1.C.R#limited($h0, this, x#20) == _1_M1.C.R#limited($h1, this, x#20));
+
+procedure CheckWellformed$$_1_M1.C.R(this: ref where this != null && read($Heap, this, alloc) && dtype(this) == class._1_M1.C, x#20: int);
+  free requires 1 == $ModuleContextHeight && 2 == $FunctionContextHeight;
+
+
+
+implementation CheckWellformed$$_1_M1.C.R(this: ref, x#20: int)
+{
+  var x#33: int;
+  var $_Frame: <beta>[ref,Field beta]bool;
+
+    if (*)
+    {
+        x#33 := x#20;
+        assume 0 <= x#20 || x#33 == x#20;
+        assume (this == this && x#20 == x#20) || x#33 < x#20;
+        assume (this == this && x#20 == x#20) || _1_M1.C.R#canCall($Heap, this, x#20);
+        if (_1_M1.C.R($Heap, this, x#20))
+        {
+        }
+
+        assume _1_M1.C.R($Heap, this, x#20) ==> x#20 < 60;
+        assume false;
+    }
+    else
+    {
+        $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && read($Heap, $o, alloc) ==> false);
+        assume _1_M1.C.R($Heap, this, x#20) == true;
+        assume true;
+    }
+}
+
+
+
+const unique class._1_M1.__default: ClassName;
+
+const unique class._module.__default: ClassName;
