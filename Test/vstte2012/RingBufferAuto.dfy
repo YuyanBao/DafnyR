@@ -1,7 +1,7 @@
 // RUN: %dafny /compile:0 /dprint:"%t.dprint" "%s" > "%t"
 // RUN: %diff "%s.expect" "%t"
 
-class {:autocontracts} RingBuffer<T>
+class {:autocontracts} RingBuffer<T(0)>
 {
   // public view of the class:
   ghost var Contents: seq<T>  // the contents of the ring buffer
@@ -15,7 +15,6 @@ class {:autocontracts} RingBuffer<T>
   // Valid encodes the consistency of RingBuffer objects (think, invariant)
   predicate Valid()
   {
-    data != null &&
     data.Length == N &&
     (N == 0 ==> len == start == 0 && Contents == []) &&
     (N != 0 ==> len <= N && start < N) &&

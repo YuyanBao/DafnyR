@@ -26,9 +26,14 @@ namespace Microsoft.Dafny
           ;
       }
     }
+    public override string Version {
+      get {
+        return ToolName + VersionSuffix;
+      }
+    }
     public override string VersionSuffix {
       get {
-        return " version " + VersionNumber + ", Copyright (c) 2003-2016, Microsoft.";
+        return " " + VersionNumber;
       }
     }
 
@@ -48,6 +53,7 @@ namespace Microsoft.Dafny
     public bool Dafnycc = false;
     public int Induction = 3;
     public int InductionHeuristic = 6;
+    public bool TypeInferenceDebug = false;
     public string DafnyPrelude = null;
     public string DafnyPrintFile = null;
     public enum PrintModes { Everything, DllEmbed, NoIncludes, NoGhost };
@@ -56,12 +62,18 @@ namespace Microsoft.Dafny
     public string DafnyPrintResolvedFile = null;
     public List<string> DafnyPrintExportedViews = new List<string>();
     public bool Compile = true;
+    [Flags]
+    public enum CompilationTarget { Csharp = 1, JavaScript = 2, Go = 4 }
+    public CompilationTarget CompileTarget = CompilationTarget.Csharp;
+    public bool CompileVerbose = true;
     public string DafnyPrintCompiledFile = null;
     public bool ForceCompile = false;
     public bool RunAfterCompile = false;
-    public bool SpillTargetCode = false;
+    public int SpillTargetCode = 0;  // [0..4]
     public bool DisallowIncludes = false;
+    public bool DisallowExterns = false;
     public bool DisableNLarith = false;
+    public int ArithMode = 1;  // [0..10]
     public string AutoReqPrintFile = null;
     public bool ignoreAutoReq = false;
     public bool AllowGlobals = false;
@@ -73,6 +85,10 @@ namespace Microsoft.Dafny
     public bool PrintStats = false;
     public bool PrintFunctionCallGraph = false;
     public bool WarnShadowing = false;
+    public int DefiniteAssignmentLevel = 1;  // [0..4]
+    public bool ForbidNondeterminism {
+      get { return DefiniteAssignmentLevel == 3; }
+    }
     public int DeprecationNoise = 1;
     public bool VerifyAllModules = false;
     public bool SeparateModuleOutput = false;
@@ -81,7 +97,7 @@ namespace Microsoft.Dafny
     public int OptimizeResolution = 2;
     public bool UseRuntimeLib = false;
     public bool DisableScopes = false;
-    public int Allocated = 2;
+    public int Allocated = 3;
     public bool IronDafny = 
 #if ENABLE_IRONDAFNY 
       true
@@ -143,11 +159,33 @@ namespace Microsoft.Dafny
 
         case "compile": {
             int compile = 0;
-            if (ps.GetNumericArgument(ref compile, 4)) {
+            if (ps.GetNumericArgument(ref compile, 5)) {
               // convert option to two booleans
               Compile = compile != 0;
-              ForceCompile = compile == 2;
-              RunAfterCompile = compile == 3;
+              ForceCompile = compile == 2 || compile == 4;
+              RunAfterCompile = compile == 3 || compile == 4;
+            }
+            return true;
+          }
+
+        case "compileTarget":
+          if (ps.ConfirmArgumentCount(1)) {
+            if (args[ps.i].Equals("cs")) {
+              CompileTarget = CompilationTarget.Csharp;
+            } else if (args[ps.i].Equals("js")) {
+              CompileTarget = CompilationTarget.JavaScript;
+            } else if (args[ps.i].Equals("go")) {
+              CompileTarget = CompilationTarget.Go;
+            } else {
+              throw new Exception("Invalid value for compileTarget");
+            }
+          }
+          return true;
+
+        case "compileVerbose": {
+            int verbosity = 0;
+            if (ps.GetNumericArgument(ref verbosity, 2)) {
+              CompileVerbose = verbosity == 1;
             }
             return true;
           }
@@ -163,8 +201,8 @@ namespace Microsoft.Dafny
 
         case "spillTargetCode": {
             int spill = 0;
-            if (ps.GetNumericArgument(ref spill, 2)) {
-              SpillTargetCode = spill != 0;  // convert to a boolean
+            if (ps.GetNumericArgument(ref spill, 4)) {
+              SpillTargetCode = spill;
             }
             return true;
           }
@@ -190,6 +228,10 @@ namespace Microsoft.Dafny
             return true;
           }
 
+        case "titrace":
+          TypeInferenceDebug = true;
+          return true;
+
         case "induction":
           ps.GetNumericArgument(ref Induction, 4);
           return true;
@@ -202,10 +244,21 @@ namespace Microsoft.Dafny
           DisallowIncludes = true;
           return true;
 
+        case "noExterns":
+          DisallowExterns = true;
+          return true;
+
         case "noNLarith":
           DisableNLarith = true;
-          this.AddZ3Option("smt.arith.nl=false");
           return true;
+
+        case "arith": {
+            int a = 0;
+            if (ps.GetNumericArgument(ref a, 11)) {
+              ArithMode = a;
+            }
+            return true;
+          }
 
         case "autoReqPrint":
           if (ps.ConfirmArgumentCount(1)) {
@@ -283,7 +336,7 @@ namespace Microsoft.Dafny
         }
 
         case "allocated": {
-            ps.GetNumericArgument(ref Allocated, 3);
+            ps.GetNumericArgument(ref Allocated, 5);
             return true;
         }
 
@@ -301,6 +354,14 @@ namespace Microsoft.Dafny
             int d = 2;
             if (ps.GetNumericArgument(ref d, 3)) {
               OptimizeResolution = d;
+            }
+            return true;
+          }
+
+        case "definiteAssignment": {
+            int da = 0;
+            if (ps.GetNumericArgument(ref da, 4)) {
+              DefiniteAssignmentLevel = da;
             }
             return true;
           }
@@ -348,6 +409,9 @@ namespace Microsoft.Dafny
       // expand macros in filenames, now that LogPrefix is fully determined
       ExpandFilename(ref DafnyPrelude, LogPrefix, FileTimestamp);
       ExpandFilename(ref DafnyPrintFile, LogPrefix, FileTimestamp);
+      if (DisableNLarith || 3 <= ArithMode) {
+        this.AddZ3Option("smt.arith.nl=false");
+      }
     }
 
     public override void AttributeUsage() {
@@ -408,6 +472,7 @@ namespace Microsoft.Dafny
   /rprint:<file>
                 print Dafny program after resolving it
                 (use - as <file> to print to console)
+  /titrace      print type-inference debug info
   /view:<view1, view2>
                 print the filtered views of a module after it is resolved (/rprint).
                 if print before the module is resolved (/dprint), then everthing in the module is printed
@@ -427,10 +492,29 @@ namespace Microsoft.Dafny
                 3 - if there is a Main method and there are no verification
                     errors, compiles program in memory (i.e., does not write
                     an output file) and runs it
+                4 - like (3), but attempts to compile and run regardless of
+                    verification outcome
+  /compileTarget:<lang>
+                cs (default) - Compilation to .NET via C#
+                go - Compilation to Go
+                js - Compilation to JavaScript
+  /compileVerbose:<n>
+                0 - don't print status of compilation to the console
+                1 (default) - print information such as files being written by
+                    the compiler to the console
   /spillTargetCode:<n>
                 0 (default) - don't write the compiled Dafny program (but
                     still compile it, if /compile indicates to do so)
-                1 - write the compiled Dafny program as a .cs file
+                1 - write the compiled Dafny program as a .cs file, if it
+                    is being compiled
+                2 - write the compiled Dafny program as a .cs file, provided
+                    it passes the verifier, regardless of /compile setting
+                3 - write the compiled Dafny program as a .cs file, regardless
+                    of verification outcome and /compile setting
+                NOTE: If there are .cs or .dll files on the command line, then
+                the compiled Dafny program will also be written. More precisely,
+                such files on the command line implies /spillTargetCode:1 (or
+                higher, if manually specified).
   /out:<file>
                 filename and location for the generated .cs, .dll or .exe files 
   /dafnycc      Disable features not supported by DafnyCC
@@ -451,8 +535,27 @@ namespace Microsoft.Dafny
                     how discriminating they are:  0 < 1 < 2 < (3,4) < 5 < 6
                 6 (default) - most discriminating
   /noIncludes   Ignore include directives
+  /noExterns    Ignore extern and dllimport attributes
   /noNLarith    Reduce Z3's knowledge of non-linear arithmetic (*,/,%).
                 Results in more manual work, but also produces more predictable behavior.
+                (This switch will perhaps be replaced by /arith in the future.
+                For now, it takes precedence of /arith.)
+  /arith:<n>    (Experimental switch. Its options may change.)
+                0 - Use Boogie/Z3 built-ins for all arithmetic operations.
+                1 (default) - Like 0, but introduce symbolic synonyms for *,/,%, and
+                    allow these operators to be used in triggers.
+                2 - Like 1, but introduce symbolic synonyms also for +,-.
+                3 - Turn off non-linear arithmetic in the SMT solver. Still,
+                    use Boogie/Z3 built-in symbols for all arithmetic operations.
+                4 - Like 3, but introduce symbolic synonyms for *,/,%, and allow these
+                    operators to be used in triggers.
+                5 - Like 4, but introduce symbolic synonyms also for +,-.
+                6 - Like 5, and introduce axioms that distribute + over *.
+                7 - like 6, and introduce facts that associate literals arguments of *.
+                8 - Like 7, and introduce axiom for the connection between *,/,%.
+                9 - Like 8, and introduce axioms for sign of multiplication
+                10 - Like 9, and introduce axioms for commutativity and
+                    associativity of *
   /autoReqPrint:<file>
                 Print out requirements that were automatically generated by autoReq.
   /noAutoReq    Ignore autoReq attributes
@@ -489,6 +592,16 @@ namespace Microsoft.Dafny
   /funcCallGraph Print out the function call graph.  Format is: func,mod=callee*
   /warnShadowing  Emits a warning if the name of a declared variable caused another variable
                 to be shadowed
+  /definiteAssignment:<n>
+                0 - ignores definite-assignment rules; this mode is for testing only--it is
+                    not sound to be used with compilation
+                1 (default) - enforces definite-assignment rules
+                2 - enforces definite-assignment for all non-ghost non-yield-parameter
+                    variables and fields, regardless of their types
+                3 - like 2, but also performs checks in the compiler that no nondeterministic
+                    statements are used; thus, a program that passes at this level 3 is one
+                    that the language guarantees that values seen during execution will be
+                    the same in every run of the program
   /deprecation:<n>
                 0 - don't give any warnings about deprecated features
                 1 (default) - show warnings about deprecated features
@@ -509,14 +622,19 @@ namespace Microsoft.Dafny
                 Warning: this option should be chosen consistently across
                 an entire project; it would be unsound to use different
                 defaults for different files or modules within a project.
+                And even so, modes /allocated:0 and /allocated:1 let functions
+                depend on the allocation state, which is not sound in general.
                 0 - Nowhere (never assume/assert allocated(x) by default).
                 1 - Assume allocated(x) only for non-ghost variables and fields
                     (these assumptions are free, since non-ghost variables
                     always contain allocated values at run-time).  This option
                     may speed up verification relative to /allocated:2.
-                2 - (default) Assert/assume allocated(x) on all variables,
+                2 - Assert/assume allocated(x) on all variables,
                     even bound variables in quantifiers.  This option is
                     the easiest to use for heapful code.
+                3 - (default) Frugal use of heap parameters.
+                4 - mode 3 but with alloc antecedents when ranges don't imply
+                    allocatedness.
   /ironDafny    Enable experimental features needed to support Ironclad/Ironfleet. Use of
                 these features may cause your code to become incompatible with future
                 releases of Dafny.

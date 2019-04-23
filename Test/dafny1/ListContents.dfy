@@ -2,16 +2,16 @@
 // RUN: %diff "%s.expect" "%t"
 
 class Node<T> {
-  ghost var List: seq<T>;
-  ghost var Repr: set<Node<T>>;
+  ghost var List: seq<T>
+  ghost var Repr: set<Node<T>>
 
-  var data: T;
-  var next: Node<T>;
+  var data: T
+  var next: Node?<T>
 
   predicate Valid()
     reads this, Repr
   {
-    this in Repr && null !in Repr &&
+    this in Repr &&
     (next == null ==> List == [data]) &&
     (next != null ==>
         next in Repr && next.Repr <= Repr &&
@@ -21,7 +21,6 @@ class Node<T> {
   }
 
   constructor (d: T)
-    modifies this
     ensures Valid() && fresh(Repr - {this})
     ensures List == [d]
   {
@@ -30,10 +29,9 @@ class Node<T> {
   }
 
   constructor InitAsPredecessor(d: T, succ: Node<T>)
-    requires succ != null && succ.Valid() && this !in succ.Repr;
-    modifies this;
-    ensures Valid() && fresh(Repr - {this} - succ.Repr);
-    ensures List == [d] + succ.List;
+    requires succ.Valid()
+    ensures Valid() && fresh(Repr - {this} - succ.Repr)
+    ensures List == [d] + succ.List
   {
     data, next := d, succ;
     List := [d] + succ.List;
@@ -42,13 +40,13 @@ class Node<T> {
 
   method Prepend(d: T) returns (r: Node<T>)
     requires Valid()
-    ensures r != null && r.Valid() && fresh(r.Repr - old(Repr))
+    ensures r.Valid() && fresh(r.Repr - old(Repr))
     ensures r.List == [d] + List
   {
     r := new Node.InitAsPredecessor(d, this);
   }
   
-  method SkipHead() returns (r: Node<T>)
+  method SkipHead() returns (r: Node?<T>)
     requires Valid()
     ensures r == null ==> |List| == 1
     ensures r != null ==> r.Valid() && r.List == List[1..] && r.Repr <= Repr
@@ -59,7 +57,7 @@ class Node<T> {
   method ReverseInPlace() returns (reverse: Node<T>)
     requires Valid()
     modifies Repr
-    ensures reverse != null && reverse.Valid() && reverse.Repr <= old(Repr)
+    ensures reverse.Valid() && reverse.Repr <= old(Repr)
     ensures |reverse.List| == |old(List)|
     ensures forall i :: 0 <= i < |reverse.List| ==> reverse.List[i] == old(List)[|old(List)|-1-i]
   {
@@ -70,7 +68,7 @@ class Node<T> {
     reverse.List := [data];
     
     while current != null
-      invariant reverse != null && reverse.Valid() && reverse.Repr <= old(Repr)
+      invariant reverse.Valid() && reverse.Repr <= old(Repr)
       invariant current == null ==> |old(List)| == |reverse.List|
       invariant current != null ==>
         current.Valid() &&

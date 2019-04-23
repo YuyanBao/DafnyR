@@ -4,12 +4,12 @@
 datatype List<T> = Nil | Cons(T, List<T>)
 
 class Node {
-  var data: int;
-  var next: Node;
+  var data: int
+  var next: Node?
 
   function Repr(list: List<int>): bool
-    reads *;
-    decreases list;
+    reads *
+    decreases list
   { match list
     case Nil =>
       next == null
@@ -18,15 +18,15 @@ class Node {
   }
 
   method Init()
-    modifies this;
-    ensures Repr(Nil);
+		modifies this
+    ensures Repr(Nil)
   {
     next := null;
   }
 
   method Add(d: int, L: List<int>) returns (r: Node)
-    requires Repr(L);
-    ensures r != null && r.Repr(Cons(d, L));
+    requires Repr(L)
+    ensures r.Repr(Cons(d, L))
   {
     r := new Node;
     r.data := d;
@@ -35,12 +35,12 @@ class Node {
 }
 
 class AnotherNode {
-  var data: int;
-  var next: AnotherNode;
+  var data: int
+  var next: AnotherNode?
 
-  function Repr(n: AnotherNode, list: List<int>): bool
-    reads *;
-    decreases list;
+  predicate Repr(n: AnotherNode?, list: List<int>)
+    reads *
+    decreases list
   { match list
     case Nil =>
       n == null
@@ -48,15 +48,15 @@ class AnotherNode {
       n != null && n.data == d && Repr(n.next, cdr)
   }
 
-  method Create() returns (n: AnotherNode)
-    ensures Repr(n, Nil);
+  method Create() returns (n: AnotherNode?)
+    ensures Repr(n, Nil)
   {
     n := null;
   }
 
   method Add(n: AnotherNode, d: int, L: List<int>) returns (r: AnotherNode)
-    requires Repr(n, L);
-    ensures Repr(r, Cons(d, L));
+    requires Repr(n, L)
+    ensures Repr(r, Cons(d, L))
   {
     r := new AnotherNode;
     r.data := d;
@@ -375,5 +375,87 @@ module LetPatterns {
     var v;  // v: int
     var m;  // m: MyDt
     var w := v + var AAA(u) := m; u;  // error: m may not be an AAA
+  }
+}
+
+module Exhaustiveness {
+  datatype Color = A | B | C
+
+  method M(c: Color)
+  {
+    if c == A {
+    } else if c == B {
+    } else if c == C {
+    } else {
+      assert false;  // works because "c" is a parameter
+    }
+  }
+
+  method P(s: seq<Color>, i: int)
+    requires 0 <= i < |s|
+  {
+    var c := s[i];
+    if c == A {
+    } else if c == B {
+    } else if c == C {
+    } else {
+      assert false;  // used to fails :(, but now works :)
+    }
+  }
+
+  method Q(s: seq<Color>, i: int)
+    requires 0 <= i < |s|
+  {
+    var c := s[i];
+    match c  // exhaustiveness is known because of the "match" statement
+    case A =>
+    case B =>
+    case C =>
+  }
+
+  method R(s: seq<Color>, i: int)
+    requires 0 <= i < |s|
+  {
+    var c := s[i];
+    if c != A && c != B && c != C {
+      assert false;  // used to fails :(, but now works :)
+    }
+  }
+
+  method AltIf(s: seq<Color>, i: int)
+    requires 0 <= i < |s|
+  {
+    var c := s[i];
+    if
+    case c == A =>
+    case c == B =>
+    case c == C =>
+  }
+
+  method ClassicLoop(s: seq<Color>, i: int)
+    requires 0 <= i < |s|
+    decreases *
+  {
+    var c := s[i];
+    while c == A || c == B || c == C
+      decreases *
+    {
+    }
+    assert false;  // fine, since we never get here (which is known by the exhaustiveness property of datatypes)
+  }
+
+  method AltLoop(s: seq<Color>, i: int)
+    requires 0 <= i < |s|
+    decreases *
+  {
+    var c := s[i];
+    while
+      decreases *
+    {
+    case c == A =>
+    case c == B =>
+    case c == C =>
+    }
+    assert false;  // fine, since we never get here (which is known by the exhaustiveness property of datatypes)
   }
 }

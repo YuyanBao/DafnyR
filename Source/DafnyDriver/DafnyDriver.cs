@@ -11,17 +11,14 @@
 namespace Microsoft.Dafny
 {
   using System;
-  using System.CodeDom.Compiler;
   using System.Collections.Generic;
   using System.Collections.ObjectModel;
   using System.Diagnostics.Contracts;
   using System.IO;
-  using System.Reflection;
   using System.Linq;
 
   using Microsoft.Boogie;
   using Bpl = Microsoft.Boogie;
-  using DafnyAssembly;
   using System.Diagnostics;
 
   public class DafnyDriver
@@ -84,7 +81,6 @@ namespace Microsoft.Dafny
       if (!CommandLineOptions.Clo.Parse(args)) {
         return ExitValue.PREPROCESSING_ERROR;
       }
-      //CommandLineOptions.Clo.Files = new List<string> { @"C:\dafny\Test\dafny0\Trait\TraitExtend.dfy" };
 
       if (CommandLineOptions.Clo.Files.Count == 0)
       {
@@ -117,19 +113,37 @@ namespace Microsoft.Dafny
         string extension = Path.GetExtension(file);
         if (extension != null) { extension = extension.ToLower(); }
         try { dafnyFiles.Add(new DafnyFile(file)); } catch (IllegalDafnyFile) {
-          if ((extension == ".cs") || (extension == ".dll")) {
-            otherFiles.Add(file);
+          if (DafnyOptions.O.CompileTarget == DafnyOptions.CompilationTarget.Csharp) {
+            if (extension == ".cs" || extension == ".dll") {
+              otherFiles.Add(file);
+            } else {
+              ExecutionEngine.printer.ErrorWriteLine(Console.Out, "*** Error: '{0}': Filename extension '{1}' is not supported. Input files must be Dafny programs (.dfy) or C# files (.cs) or managed DLLS (.dll)", file,
+                extension == null ? "" : extension);
+              return ExitValue.PREPROCESSING_ERROR;
+            }
+          } else if (DafnyOptions.O.CompileTarget == DafnyOptions.CompilationTarget.JavaScript) {
+            if (extension == ".js") {
+              otherFiles.Add(file);
+            } else {
+              ExecutionEngine.printer.ErrorWriteLine(Console.Out, "*** Error: '{0}': Filename extension '{1}' is not supported. Input files must be Dafny programs (.dfy) or JavaScrip files (.js)", file,
+                extension == null ? "" : extension);
+              return ExitValue.PREPROCESSING_ERROR;
+            }
           } else {
-            ExecutionEngine.printer.ErrorWriteLine(Console.Out, "*** Error: '{0}': Filename extension '{1}' is not supported. Input files must be Dafny programs (.dfy) or C# files (.cs) or managed DLLS (.dll)", file,
-              extension == null ? "" : extension);
-            return ExitValue.PREPROCESSING_ERROR;
+            if (extension == ".go") {
+              otherFiles.Add(file);
+            } else {
+              ExecutionEngine.printer.ErrorWriteLine(Console.Out, "*** Error: '{0}': Filename extension '{1}' is not supported. Input files must be Dafny programs (.dfy) or Go files (.go)", file,
+                extension == null ? "" : extension);
+              return ExitValue.PREPROCESSING_ERROR;
+            }
           }
         }
       }
       return ExitValue.VERIFIED;
     }
 
-    static ExitValue ProcessFiles(IList<DafnyFile/*!*/>/*!*/ dafnyFiles, ReadOnlyCollection<string> otherFileNames, 
+    static ExitValue ProcessFiles(IList<DafnyFile/*!*/>/*!*/ dafnyFiles, ReadOnlyCollection<string> otherFileNames,
                                   ErrorReporter reporter, bool lookForSnapshots = true, string programId = null)
    {
       Contract.Requires(cce.NonNullElements(dafnyFiles));
@@ -168,7 +182,7 @@ namespace Microsoft.Dafny
         }
         return exitValue;
       }
-      
+
       Dafny.Program dafnyProgram;
       string programName = dafnyFileNames.Count == 1 ? dafnyFileNames[0] : "the program";
       string err = Dafny.Main.ParseCheck(dafnyFiles, programName, reporter, out dafnyProgram);
@@ -303,7 +317,7 @@ namespace Microsoft.Dafny
         statSum.CachedOutOfMemoryCount += stats.Value.CachedOutOfMemoryCount;
         statSum.CachedTimeoutCount += stats.Value.CachedTimeoutCount;
         statSum.CachedVerifiedCount += stats.Value.CachedVerifiedCount;
-        statSum.InconclusiveCount += stats.Value.InconclusiveCount;        
+        statSum.InconclusiveCount += stats.Value.InconclusiveCount;
       }
       ExecutionEngine.printer.WriteTrailer(statSum);
     }
@@ -318,13 +332,17 @@ namespace Microsoft.Dafny
       {
         case PipelineOutcome.VerificationCompleted:
           WriteStatss(statss);
-          if ((DafnyOptions.O.Compile && verified && CommandLineOptions.Clo.ProcsToCheck == null) || DafnyOptions.O.ForceCompile)
-            compiled = CompileDafnyProgram(dafnyProgram, resultFileName, otherFileNames);
+          if ((DafnyOptions.O.Compile && verified && CommandLineOptions.Clo.ProcsToCheck == null) || DafnyOptions.O.ForceCompile) {
+            compiled = CompileDafnyProgram(dafnyProgram, resultFileName, otherFileNames, true);
+          } else if ((2 <= DafnyOptions.O.SpillTargetCode && verified && CommandLineOptions.Clo.ProcsToCheck == null) || 3 <= DafnyOptions.O.SpillTargetCode) {
+            compiled = CompileDafnyProgram(dafnyProgram, resultFileName, otherFileNames, false);
+          }
           break;
         case PipelineOutcome.Done:
           WriteStatss(statss);
-          if (DafnyOptions.O.ForceCompile)
-            compiled = CompileDafnyProgram(dafnyProgram, resultFileName, otherFileNames);
+          if (DafnyOptions.O.ForceCompile || 3 <= DafnyOptions.O.SpillTargetCode) {
+            compiled = CompileDafnyProgram(dafnyProgram, resultFileName, otherFileNames, DafnyOptions.O.ForceCompile);
+          }
           break;
         default:
           // error has already been reported to user
@@ -387,7 +405,7 @@ namespace Microsoft.Dafny
 
 
     #region Output
-    
+
     class DafnyConsolePrinter : ConsolePrinter
     {
       public override void ReportBplError(IToken tok, string message, bool error, TextWriter tw, string category = null)
@@ -413,166 +431,157 @@ namespace Microsoft.Dafny
 
     #region Compilation
 
-    static string WriteDafnyProgramToFile(string dafnyProgramName, string csharpProgram, bool completeProgram, TextWriter outputWriter)
+    static string WriteDafnyProgramToFiles(string dafnyProgramName, string targetProgram, bool completeProgram, Dictionary<String, String> otherFiles, TextWriter outputWriter)
     {
-      string targetFilename = Path.ChangeExtension(dafnyProgramName, "cs");
-      using (TextWriter target = new StreamWriter(new FileStream(targetFilename, System.IO.FileMode.Create))) {
-        target.Write(csharpProgram);
-        string relativeTarget = Path.GetFileName(targetFilename);
-        if (completeProgram) {
+      string targetExtension;
+      string baseName = Path.GetFileNameWithoutExtension(dafnyProgramName);
+      string targetBaseDir = "";
+      switch (DafnyOptions.O.CompileTarget) {
+        case DafnyOptions.CompilationTarget.Csharp:
+          targetExtension = "cs";
+          break;
+        case DafnyOptions.CompilationTarget.JavaScript:
+          targetExtension = "js";
+          break;
+        case DafnyOptions.CompilationTarget.Go:
+          targetExtension = "go";
+          targetBaseDir = baseName + "-go/src";
+          break;
+        default:
+          Contract.Assert(false);
+          throw new cce.UnreachableException();
+      }
+      string targetBaseName = Path.ChangeExtension(baseName, targetExtension);
+      string targetDir = Path.Combine(Path.GetDirectoryName(dafnyProgramName), targetBaseDir);
+      string targetFilename = Path.Combine(targetDir, targetBaseName);
+      WriteFile(targetFilename, targetProgram);
+      string relativeTarget = Path.Combine(targetBaseDir, targetBaseName);
+      if (completeProgram) {
+        if (DafnyOptions.O.CompileVerbose) {
           outputWriter.WriteLine("Compiled program written to {0}", relativeTarget);
         }
-        else {
-          outputWriter.WriteLine("File {0} contains the partially compiled program", relativeTarget);
+      }
+      else {
+        outputWriter.WriteLine("File {0} contains the partially compiled program", relativeTarget);
+      }
+
+      foreach (var entry in otherFiles) {
+        var filename = entry.Key;
+        WriteFile(Path.Combine(targetDir, filename), entry.Value);
+        if (DafnyOptions.O.CompileVerbose) {
+          outputWriter.WriteLine("Additional code written to {0}", Path.Combine(targetBaseDir, filename));
         }
       }
       return targetFilename;
     }
 
+    static void WriteFile(string filename, string text) {
+      var dir = Path.GetDirectoryName(filename);
+      if (dir != "") {
+        Directory.CreateDirectory(dir);
+      }
+      
+      using (TextWriter target = new StreamWriter(new FileStream(filename, System.IO.FileMode.Create))) {
+        target.Write(text);
+      }
+    }
+
+    /// <summary>
+    /// Generate a C# program from the Dafny program and, if "invokeCompiler" is "true", invoke
+    /// the C# compiler to compile it.
+    /// </summary>
     public static bool CompileDafnyProgram(Dafny.Program dafnyProgram, string dafnyProgramName,
-                                           ReadOnlyCollection<string> otherFileNames, TextWriter outputWriter = null)
+                                           ReadOnlyCollection<string> otherFileNames, bool invokeCompiler,
+                                           TextWriter outputWriter = null)
     {
       Contract.Requires(dafnyProgram != null);
+      Contract.Assert(dafnyProgramName != null);
 
       if (outputWriter == null)
       {
         outputWriter = Console.Out;
       }
 
-      // Compile the Dafny program into a string that contains the C# program
-      StringWriter sw = new StringWriter();
-      Dafny.Compiler compiler = new Dafny.Compiler();
-      compiler.ErrorWriter = outputWriter;
-      var hasMain = compiler.HasMain(dafnyProgram);
-      compiler.Compile(dafnyProgram, sw);
-      var csharpProgram = sw.ToString();
-      bool completeProgram = compiler.ErrorCount == 0;
+      bool runRequiresSpill = false;
+
+      // Compile the Dafny program into a string that contains the target program
+      var oldErrorCount = dafnyProgram.reporter.Count(ErrorLevel.Error);
+      Dafny.Compiler compiler;
+      switch (DafnyOptions.O.CompileTarget) {
+        case DafnyOptions.CompilationTarget.Csharp:
+        default:
+          compiler = new Dafny.CsharpCompiler(dafnyProgram.reporter);
+          break;
+        case DafnyOptions.CompilationTarget.JavaScript:
+          compiler = new Dafny.JavaScriptCompiler(dafnyProgram.reporter);
+          break;
+        case DafnyOptions.CompilationTarget.Go:
+          compiler = new Dafny.GoCompiler(dafnyProgram.reporter);
+          runRequiresSpill = true;
+          break;
+      }
+
+      Method mainMethod;
+      var hasMain = compiler.HasMain(dafnyProgram, out mainMethod);
+      string targetProgramText;
+      var otherFiles = new Dictionary<string, string>();
+      {
+        var fileQueue = new Queue<FileTargetWriter>();
+        using (var wr = new TargetWriter(0)) {
+          compiler.Compile(dafnyProgram, wr);
+          var sw = new StringWriter();
+          wr.Collect(sw, fileQueue);
+          targetProgramText = sw.ToString();
+        }
+
+        while (fileQueue.Count > 0) {
+          var wr = fileQueue.Dequeue();
+          var sw = new StringWriter();
+          wr.Collect(sw, fileQueue);
+          otherFiles.Add(wr.Filename, sw.ToString());
+        }
+      }
+      string callToMain = null;
+      if (hasMain) {
+        using (var wr = new TargetWriter(0)) {
+          compiler.EmitCallToMain(mainMethod, wr);
+          callToMain = wr.ToString(); // assume there aren't multiple files just to call main
+        }
+      }
+      bool completeProgram = dafnyProgram.reporter.Count(ErrorLevel.Error) == oldErrorCount;
 
       // blurt out the code to a file, if requested, or if other files were specified for the C# command line.
       string targetFilename = null;
-      if (DafnyOptions.O.SpillTargetCode || (otherFileNames.Count > 0))
+      if (DafnyOptions.O.SpillTargetCode > 0 || otherFileNames.Count > 0 || (runRequiresSpill && DafnyOptions.O.RunAfterCompile))
       {
-        targetFilename = WriteDafnyProgramToFile(dafnyProgramName, csharpProgram, completeProgram, outputWriter);
+        var p = callToMain == null ? targetProgramText : targetProgramText + callToMain;
+        targetFilename = WriteDafnyProgramToFiles(dafnyProgramName, p, completeProgram, otherFiles, outputWriter);
       }
 
       // compile the program into an assembly
-      if (!completeProgram)
-      {
+      if (!completeProgram || !invokeCompiler) {
         // don't compile
         return false;
       }
-      else if (!CodeDomProvider.IsDefinedLanguage("CSharp"))
-      {
-        outputWriter.WriteLine("Error: cannot compile, because there is no provider configured for input language CSharp");
-        return false;
-      }
-      else
-      {
-        var provider = CodeDomProvider.CreateProvider("CSharp", new Dictionary<string, string> { { "CompilerVersion", "v4.0" } });
-        var cp = new System.CodeDom.Compiler.CompilerParameters();
-        cp.GenerateExecutable = hasMain;
-        if (DafnyOptions.O.RunAfterCompile) {
-          cp.GenerateInMemory = true;
-        } else if (hasMain) {
-          cp.OutputAssembly = Path.ChangeExtension(dafnyProgramName, "exe");
-          cp.GenerateInMemory = false;
-        } else {
-          cp.OutputAssembly = Path.ChangeExtension(dafnyProgramName, "dll");
-          cp.GenerateInMemory = false;
-        }
-        cp.CompilerOptions = "/debug /nowarn:0164 /nowarn:0219";  // warning CS0164 complains about unreferenced labels, CS0219 is about unused variables
-        cp.ReferencedAssemblies.Add("System.Numerics.dll");
-        cp.ReferencedAssemblies.Add("System.Core.dll");
-        cp.ReferencedAssemblies.Add("System.dll");
 
-        var libPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + Path.DirectorySeparatorChar;
-        if (DafnyOptions.O.UseRuntimeLib) {
-          cp.ReferencedAssemblies.Add(libPath + "DafnyRuntime.dll");
-        }
-
-        var immutableDllFileName = "System.Collections.Immutable.dll";
-        var immutableDllPath = libPath + immutableDllFileName;
-
-        if (DafnyOptions.O.Optimize) {
-          cp.CompilerOptions += " /optimize /define:DAFNY_USE_SYSTEM_COLLECTIONS_IMMUTABLE";
-          cp.ReferencedAssemblies.Add(immutableDllPath);
-          cp.ReferencedAssemblies.Add("System.Runtime.dll");
-        }
-
-        int numOtherSourceFiles = 0;
-        if (otherFileNames.Count > 0) {
-          foreach (var file in otherFileNames) {
-            string extension = Path.GetExtension(file);
-            if (extension != null) { extension = extension.ToLower(); }
-            if (extension == ".cs") {
-              numOtherSourceFiles++;
-            }
-            else if (extension == ".dll") {
-              cp.ReferencedAssemblies.Add(file);
-            }
-          }
-        }
-
-        CompilerResults cr;
-        if (numOtherSourceFiles > 0) {
-          string[] sourceFiles = new string[numOtherSourceFiles + 1];
-          sourceFiles[0] = targetFilename;
-          int index = 1;
-          foreach (var file in otherFileNames) {
-            string extension = Path.GetExtension(file);
-            if (extension != null) { extension = extension.ToLower(); }
-            if (extension == ".cs") {
-              sourceFiles[index++] = file;
-            }
-          }
-          cr = provider.CompileAssemblyFromFile(cp, sourceFiles);
-        }
-        else {
-          cr = provider.CompileAssemblyFromSource(cp, csharpProgram);
-        }
-
-        if (DafnyOptions.O.RunAfterCompile && !hasMain) {
-          // do no more
-          return cr.Errors.Count == 0 ? true : false;
-        }
-
-        var assemblyName = Path.GetFileName(cr.PathToAssembly);
-        if (DafnyOptions.O.RunAfterCompile && cr.Errors.Count == 0) {
-          outputWriter.WriteLine("Program compiled successfully");
-          outputWriter.WriteLine("Running...");
-          outputWriter.WriteLine();
-          var entry = cr.CompiledAssembly.EntryPoint;
-          try {
-            object[] parameters = entry.GetParameters().Length == 0 ? new object[] { } : new object[] { new string[0] };
-            entry.Invoke(null, parameters);
-          } catch (System.Reflection.TargetInvocationException e) {
-            outputWriter.WriteLine("Error: Execution resulted in exception: {0}", e.Message);
-            outputWriter.WriteLine(e.InnerException.ToString());
-          } catch (Exception e) {
-            outputWriter.WriteLine("Error: Execution resulted in exception: {0}", e.Message);
-            outputWriter.WriteLine(e.ToString());
-          }
-        } else if (cr.Errors.Count == 0) {
-          outputWriter.WriteLine("Compiled assembly into {0}", assemblyName);
-          if (DafnyOptions.O.Optimize) {
-            var outputDir = Path.GetDirectoryName(dafnyProgramName);
-            if (string.IsNullOrWhiteSpace(outputDir)) {
-              outputDir = ".";
-            }
-            var destPath = outputDir + Path.DirectorySeparatorChar + immutableDllFileName;
-            File.Copy(immutableDllPath, destPath, true);
-            outputWriter.WriteLine("Copied /optimize dependency {0} to {1}", immutableDllFileName, outputDir);
-          }
-        } else {
-          outputWriter.WriteLine("Errors compiling program into {0}", assemblyName);
-          foreach (var ce in cr.Errors) {
-            outputWriter.WriteLine(ce.ToString());
+      object compilationResult;
+      var compiledCorrectly = compiler.CompileTargetProgram(dafnyProgramName, targetProgramText, callToMain, targetFilename, otherFileNames,
+        hasMain, hasMain && DafnyOptions.O.RunAfterCompile, outputWriter, out compilationResult);
+      if (compiledCorrectly && DafnyOptions.O.RunAfterCompile) {
+        if (hasMain) {
+          if (DafnyOptions.O.CompileVerbose) {
+            outputWriter.WriteLine("Running...");
             outputWriter.WriteLine();
           }
-          return false;
+          compiledCorrectly = compiler.RunTargetProgram(dafnyProgramName, targetProgramText, callToMain, targetFilename, otherFileNames, compilationResult, outputWriter);
+        } else {
+          // make sure to give some feedback to the user
+          if (DafnyOptions.O.CompileVerbose) {
+            outputWriter.WriteLine("Program compiled successfully");
+          }
         }
-        return true;
       }
+      return compiledCorrectly;
     }
 
     #endregion

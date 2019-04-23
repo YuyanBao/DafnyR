@@ -12,7 +12,7 @@ abstract module M0 {
   // and implementation of the Schorr-Waite algorithm.
 
   class Node {
-    var children: seq<Node>
+    var children: seq<Node?>
     var marked: bool
     var childrenVisited: nat
   }
@@ -21,14 +21,12 @@ abstract module M0 {
 
   predicate Reachable(source: Node, sink: Node, S: set<Node>)
     reads S
-    requires null !in S
   {
     exists via :: ReachableVia(source, via, sink, S)
   }
 
   predicate ReachableVia(source: Node, p: Path, sink: Node, S: set<Node>)
     reads S
-    requires null !in S
     decreases p
   {
     match p
@@ -39,7 +37,7 @@ abstract module M0 {
   method SchorrWaite(root: Node, ghost S: set<Node>)
     requires root in S
     // S is closed under 'children':
-    requires forall n :: n in S ==> n != null &&
+    requires forall n :: n in S ==>
                 forall ch :: ch in n.children ==> ch == null || ch in S
     // the graph starts off with nothing marked and nothing being indicated as currently being visited:
     requires forall n :: n in S ==> !n.marked && n.childrenVisited == 0
@@ -57,7 +55,7 @@ abstract module M0 {
     decreases *  // leave termination checking for a later refinement
   {
     root.marked := true;
-    var t, p: Node := root, null;
+    var t, p: Node? := root, null;
     ghost var stackNodes: seq<Node> := [];
     while true
       // stackNodes is a sequence of nodes from S:
@@ -96,12 +94,12 @@ abstract module M0 {
       // points to stackNodes[k-1], with the end case pointing to null.
       invariant 0 < |stackNodes| ==>
                   stackNodes[0].children[stackNodes[0].childrenVisited] == null
-      invariant forall k :: 0 < k < |stackNodes| ==>
+      invariant forall k {:matchinglooprewrite false} :: 0 < k < |stackNodes| ==>
                   stackNodes[k].children[stackNodes[k].childrenVisited] == stackNodes[k-1]
       // We also need to keep track of what the original values of the children pointers had been.  Here, we
       // have that the active child of stackNodes[k] used to be stackNodes[k+1], with the end case pointing
       // to t.
-      invariant forall k :: 0 <= k < |stackNodes|-1 ==>
+      invariant forall k {:matchinglooprewrite false} :: 0 <= k < |stackNodes|-1 ==>
                   old(stackNodes[k].children)[stackNodes[k].childrenVisited] == stackNodes[k+1]
       invariant 0 < |stackNodes| ==>
         old(stackNodes[|stackNodes|-1].children)[stackNodes[|stackNodes|-1].childrenVisited] == t

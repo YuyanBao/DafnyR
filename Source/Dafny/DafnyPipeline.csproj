@@ -147,6 +147,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cloner.cs" />
+    <Compile Include="Compiler-Csharp.cs" />
+    <Compile Include="Compiler-go.cs" />
+    <Compile Include="Compiler-js.cs" />
     <Compile Include="Reporting.cs" />
     <Compile Include="Triggers\QuantifiersCollection.cs" />
     <Compile Include="Triggers\QuantifierSplitter.cs" />
@@ -175,8 +178,8 @@
     <None Include="Dafny.atg" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Parser.cs" />
-    <Compile Include="Scanner.cs" />
+    <Compile Include="Parser.cs" Visible="False" />
+    <Compile Include="Scanner.cs" Visible="False" />
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include="Microsoft.Net.Client.3.5">
@@ -209,4 +212,8 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <PropertyGroup>
+    <CodeContractsInstallDir Condition="'$(CodeContractsInstallDir)'==''">C:\Program Files (x86)\Microsoft\Contracts\</CodeContractsInstallDir>
+  </PropertyGroup>
+  <Import Condition="'$(CodeContractsImported)' != 'true' AND '$(DontImportCodeContracts)' != 'true' AND Exists($(CodeContractsInstallDir))" Project="$(CodeContractsInstallDir)MsBuild\v14.0\Microsoft.CodeContracts.targets" />
 </Project>

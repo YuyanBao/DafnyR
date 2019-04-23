@@ -7,38 +7,39 @@ class MyClass<T> {
   // This function is in a ghost context, so all is cool.
   function GhostF(): bool
   {
-    (forall n :: 2 <= n ==> (exists d :: n < d && d < 2*n))
+    forall n :: 2 <= n ==> (exists d :: n < d && d < 2*n)
   }
   // But try to make it a non-ghost function, and Dafny will object because it cannot compile the
   // body into code that will terminate.
   function method NonGhostF(): bool
   {
-    (forall n :: 2 <= n ==> (exists d :: n < d && d < 2*n))  // error: can't figure out how to compile
+    forall n :: 2 <= n ==> exists d :: n < d && d < 2*n  // error: can't figure out how to compile
   }
   // Add an upper bound to n and things are cool again.
   function method NonGhostF_Bounded(): bool
   {
-    (forall n :: 2 <= n && n < 1000 ==> (exists d :: n < d && d < 2*n))
+    forall n :: 2 <= n && n < 1000 ==> exists d :: n < d && d < 2*n
   }
   // Although the heuristics applied are syntactic, they do see through the structure of the boolean
   // operators ==>, &&, ||, and !.  Hence, the following three variations of the previous function can
   // also be compiled.
   function method NonGhostF_Or(): bool
   {
-    (forall n :: !(2 <= n && n < 1000) || (exists d :: n < d && d < 2*n))
+    forall n :: !(2 <= n && n < 1000) || exists d :: n < d && d < 2*n
   }
   function method NonGhostF_ImpliesImplies(): bool
   {
-    (forall n :: 2 <= n ==> n < 1000 ==> (exists d :: n < d && d < 2*n))
+    forall n :: 2 <= n ==> n < 1000 ==> exists d :: n < d && d < 2*n
   }
   function method NonGhostF_Shunting(): bool
   {
-    (forall n :: 2 <= n ==> 1000 <= n || (exists d :: n < d && d < 2*n))
+    forall n :: 2 <= n ==> 1000 <= n || exists d :: n < d && d < 2*n
   }
 
   function method GoodRange(): bool
   {
-    (forall n | 2 <= n :: 1000 <= n || (exists d | n < d :: d < 2*n)) && (exists K: nat | K < 100 :: true)
+    (forall n | 2 <= n :: 1000 <= n || (exists d | n < d :: d < 2*n)) &&
+    (exists K: nat | K < 100 :: true)
   }
   function method BadRangeForall(): bool
   {
@@ -56,7 +57,6 @@ class MyClass<T> {
   // Here are more tests
 
   function method F(a: array<T>): bool
-    requires a != null;
     reads a;
   {
     (exists i :: 0 <= i && i < a.Length / 2 && (forall j :: i <= j && j < a.Length ==> a[i] == a[j]))
@@ -71,39 +71,39 @@ class MyClass<T> {
     (exists ti :: 0 <= ti && ti < |a| && (forall ui :: 0 <= ui && ui < |a| ==> a[ui] == a[ti]))
   }
 
-  // Regrettably, the heuristics don't know about transitivity:
+  // Figuring out the following bounds requires understanding transitivity. Very cool!
   function method IsSorted0(s: seq<int>): bool
   {
-    (forall i, j :: 0 <= i && i < j && j < |s| ==> s[i] <= s[j])  // error: can't figure out how to compile
+    (forall i, j :: 0 <= i && i < j && j < |s| ==> s[i] <= s[j])
   }
   function method IsSorted1(s: seq<int>): bool
   {
-    (forall j, i :: 0 <= i && i < j && j < |s| ==> s[i] <= s[j])  // error: can't figure out how to compile
+    (forall j, i :: 0 <= i && i < j && j < |s| ==> s[i] <= s[j])
   }
-  // Add the redundant conjunct "i < |s|" and things are fine.
+  // It also works with the redundant conjunct i < |s|
   function method IsSorted2(s: seq<int>): bool
   {
     (forall i, j :: 0 <= i && i < |s| && i < j && j < |s| ==> s[i] <= s[j])
   }
-  // But if you switch the order of i and j, you need a different redundant conjunct.
+  // It also works if you switch the order of i and j, here with another redundant conjunct
   function method IsSorted3(s: seq<int>): bool
   {
-    (forall j, i :: 0 <= i && i < |s| && i < j && j < |s| ==> s[i] <= s[j])  // error: can't figure out how to compile
+    (forall j, i :: 0 <= i && i < |s| && i < j && j < |s| ==> s[i] <= s[j])
   }
   function method IsSorted4(s: seq<int>): bool
   {
     (forall j, i  :: 0 <= i && 0 < j && i < j && j < |s| ==> s[i] <= s[j])
   }
 
-  // The heuristics look at bound variables in the order given, as is illustrated by the following
-  // two functions.
+  // The heuristics look at bound variables in the order given as well as in
+  // the reverse order.
   function method Order0(S: seq<set<int>>): bool
   {
     (forall i, j :: 0 <= i && i < |S| && j in S[i] ==> 0 <= j)
   }
   function method Order1(S: seq<set<int>>): bool
   {
-    (forall j, i :: 0 <= i && i < |S| && j in S[i] ==> 0 <= j)  // error: can't figure out how to compile
+    (forall j, i :: 0 <= i && i < |S| && j in S[i] ==> 0 <= j)
   }
 
   // Quantifiers can be used in other contexts, too.
@@ -146,39 +146,39 @@ class MyClass<T> {
 module DependencyOnAllAllocatedObjects {
   function AllObjects0(): bool
   {
-    forall c: SomeClass :: c != null ==> c.f == 0  // error: not allowed to dependend on which objects are allocated
+    forall c: SomeClass :: c.f == 0  // error: not allowed to depend on which objects are allocated
   }
   function AllObjects1(): bool
   {
-    forall c: SomeClass :: true  // error: not allowed to dependend on which objects are allocated
+    forall c: SomeClass :: true  // error: not allowed to depend on which objects are allocated
   }
   function AllObjects10(): bool
     reads *;
   {
-    forall c: SomeClass :: c != null ==> c.f == 0  // error: not allowed to dependend on which objects are allocated
+    forall c: SomeClass :: c.f == 0  // error: not allowed to depend on which objects are allocated
   }
   function AllObjects11(): bool
     reads *;
   {
-    forall c: SomeClass :: true  // error: not allowed to dependend on which objects are allocated
+    forall c: SomeClass :: true  // error: not allowed to depend on which objects are allocated
   }
   function method AllObjects20(): bool
   {
-    forall c: SomeClass :: c != null ==> c.f == 0  // error: not allowed to dependend on which objects are allocated
+    forall c: SomeClass :: c.f == 0  // error: not allowed to depend on which objects are allocated
   }
   function method AllObjects21(): bool
   {
-    forall c: SomeClass :: true  // error: not allowed to dependend on which objects are allocated
+    forall c: SomeClass :: true  // error: not allowed to depend on which objects are allocated
   }
   function method AllObjects30(): bool
     reads *;
   {
-    forall c: SomeClass :: c != null ==> c.f == 0  // error: not allowed to dependend on which objects are allocated
+    forall c: SomeClass :: c.f == 0  // error: not allowed to depend on which objects are allocated
   }
   function method AllObjects31(): bool
     reads *;
   {
-    forall c: SomeClass :: true  // error: not allowed to dependend on which objects are allocated
+    forall c: SomeClass :: true  // error: not allowed to depend on which objects are allocated
   }
 
   class SomeClass {
@@ -189,13 +189,12 @@ module DependencyOnAllAllocatedObjects {
 module DependencyOnAllAllocatedObjects_More {
   method M()
   {
-    var b := forall c: SomeClass :: c != null ==> c.f == 0;  // error: non-ghost code requires bounds
-    ghost var g := forall c: SomeClass :: c != null ==> c.f == 0;  // cool (this is in a ghost context
-                                                                   // outside a function)
+    var b := forall c: SomeClass :: c.f == 0;  // error: non-ghost code requires bounds
+    ghost var g := forall c: SomeClass :: c.f == 0;  // cool (this is in a ghost context
+                                                // outside a function)
   }
 
   class SomeClass {
-    var f: int;
+    var f: int
   }
 }
-

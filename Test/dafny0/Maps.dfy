@@ -152,7 +152,8 @@ method m12()
 }
 
 function domain<U, V>(m: map<U,V>): set<U>
-   ensures forall i :: i in domain(m) <==> i in m;
+   ensures forall i :: i in domain(m) ==> i in m
+   ensures forall i :: i in domain(m) <== i in m
 {
    set s | s in m
 }
@@ -167,7 +168,9 @@ method m13()
 
 function union<U, V>(m: map<U,V>, m': map<U,V>): map<U,V>
    requires m !! m';
-   ensures forall i :: i in union(m, m') <==> i in m || i in m';
+   // ensures forall i :: i in union(m, m') <==> i in m || i in m'
+   ensures forall i :: i in union(m, m') ==> i in m.Keys + m'.Keys
+   ensures forall i :: i in union(m, m') <== i in m.Keys + m'.Keys
    ensures forall i :: i in m ==> union(m, m')[i] == m[i];
    ensures forall i :: i in m' ==> union(m, m')[i] == m'[i];
 {
@@ -186,9 +189,57 @@ method m14()
 class A { var x: int; }
 
 method m15(b: set<A>) 
-  requires forall a | a in b :: a != null;
 {
   var m := map a | a in b :: a.x;
   var aa := new A;
   assert aa !in m;
+}
+
+function method Plus(x: int, y: int): int { x + y }  // a symbol to appear in trigger
+method GeneralMaps0() {
+  var m := map x | 2 <= x < 6 :: x+1;
+  assert 5 in m.Keys;
+  assert 6 !in m.Keys;
+  assert m[5] == 6;
+  assert 6 in m.Values;
+  assert (5,6) in m.Items;
+  m := map y | 2 <= y < 6 :: Plus(y, 1) := y + 3;
+  assert Plus(5, 1) in m.Keys;
+  assert 7 !in m.Keys;
+  assert m[6] == 8;
+  assert 8 in m.Values;
+  assert (6,8) in m.Items;
+}
+
+function method f(x: int): int  // uninterpreted function
+  requires 0 <= x
+function method g(x: int): int  // uninterpreted function
+
+method GeneralMaps1() {
+  if * {
+    var m := map z | 2 <= z < 6 :: z/2 := z;  // error: LHSs not unique
+  } else if * {
+    var m := map z | 2 <= z < 6 :: z/2 := z/2 + 3;  // fine, since corresponding RHSs are the same
+  } else if * {
+    var m := map z | 2 <= z < 6 :: f(z) := 20;  // fine, since corresponding RHSs are the same
+  } else if * {
+    var m := map z | 2 <= z < 6 :: f(z) := z;  // error: LHSs not (known to be) unique
+  }
+}
+
+ghost method GeneralMaps2() {
+  if * {
+    var m := imap z | 2 <= z < 6 :: g(z) := z;  // error: LHSs not (known to be) unique
+  } else {
+    var m := imap z :: g(z) := z;  // error: LHSs not (known to be) unique
+  }
+}
+
+method GeneralMaps3() {
+  // well-formedness
+  if * {
+    var m := map u | -2 <= u < 6 :: u := f(u);  // error: RHS may not be defined
+  } else if * {
+    var m := map u | -2 <= u < 6 :: f(u) := u;  // error: LHS may not be defined (also, LHS non-unique)
+  }
 }

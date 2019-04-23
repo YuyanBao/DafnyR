@@ -88,7 +88,7 @@ method A1(x: int) returns (r: int)
 }
 
 method DutchFlag(A: array<int>, N: int, l: int, r: int) returns (result: int)
-  requires A != null && N == A.Length;
+  requires N == A.Length;
   requires 0 <= l && l+2 <= r && r <= N;
   modifies A;
   ensures l <= result && result < r;
@@ -287,4 +287,58 @@ method PF1(d: D)
   while {1, 2, 3} <= {1, 2} {
     assert false;
   }  
+}
+
+// --------------- labels looking like numeric literals ---------------
+
+method TheBreaker_AllGood_DigitsLabels(M: int, N: int, O: int)
+{
+  var a, b, c, d, e;
+  var i := 0;
+  while (i < M)
+  {
+    var j := 0;
+    label 0:
+    while (j < N)
+    {
+      var u := 2000;
+      label 1_0:
+      label 10:
+      if (*) {
+        a := 15; break;
+      } else if (*) {
+        b := 12; break break;
+      } else if (*) {
+        c := 21; break 0;
+      } else if (*) {
+        while (u < 10000) {
+          u := u + 3;
+          if (*) { u := 1998; break 1_0; }
+          if (*) { u := 1998; break 10; }
+        }
+        assert 10000 <= u;
+        u := 1998;
+      } else {
+        u := u - 2;
+      }
+      assert u == 1998;
+      var k := 0;
+      while
+        decreases O - k;
+      {
+        case k < O && k % 2 == 0 =>
+          d := 187; break;
+        case k < O =>
+          if (*) { e := 4; break 0; }
+          if (*) { e := 7; break; }
+          if (*) { e := 37; break break break; }
+          k := k + 1;
+      }
+      assert O <= k || d == 187 || e == 7;
+      j := j + 1;
+    }
+    assert N <= j || a == 15 || c == 21 || e == 4;
+    i := i + 1;
+  }
+  assert M <= i || b == 12 || e == 37;
 }

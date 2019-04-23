@@ -69,7 +69,7 @@ method m6<T>(a: Iter<T>, b: Iter<int>)
 {
 }
 
-method m7<T>(a: T -> int, b: int -> T, c: int -> int)
+method m7<T>(a: T ~> int, b: int ~> T, c: int ~> int)
   requires a != c;  // error: arrow types don't fall under the liberal equality rules
   requires b != c;  // error: ditto
 {
@@ -96,9 +96,9 @@ method m9<T>(a: array<List<int>>, b: array<List<bool>>,
   requires a != c;
   requires b != c;  // error
   requires c != d;
-  requires a != e;
-  requires b != e;
-  requires d != e;
+  requires a != e;  // error
+  requires b != e;  // error
+  requires d != e;  // error
   requires a != f;
   requires b != f;  // error
 {

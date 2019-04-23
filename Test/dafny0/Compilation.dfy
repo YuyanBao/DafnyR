@@ -178,7 +178,6 @@ method DigitsIdents(t: Tuple<int, Tuple<int, bool>>)
 class DigitsClass {
   var 7: bool;
   method M(c: DigitsClass)
-    requires c != null;
   {
     var x: int := if this.7 then 7 else if c.7 then 8 else 9;
   }
@@ -267,6 +266,11 @@ method Main()
 {
   CoRecursion.TestMain();
   EqualityTests.TestMain();
+  TypeInstantiations.TestMain();
+  TailRecursionWhereTypeParametersChange.TestMain();
+  GeneralMaps.Test();
+  Cardinalities.Test();
+  AltLoop.Test();
 }
 
 // ------------------------------------------------------------------
@@ -278,7 +282,7 @@ module EqualityTests {
   method TestMain()
   {
     // regression tests:
-    var a: C<int>, b: C<int> := null, null;
+    var a: C?<int>, b: C?<int> := null, null;
     if a == null {
       print "a is null\n";
     }
@@ -296,7 +300,7 @@ module EqualityTests {
     ArrayTests(H);
   }
 
-  method ArrayTests<T>(H: array<T>)
+  method ArrayTests<T>(H: array?<T>)
   {
     var G := new int[10];
     if G == H {  // this comparison is allowed in Dafny, but requires a cast in C#
@@ -321,4 +325,173 @@ method N()
 {
   var z: nat :| true;
   assert 0 <= z;
+}
+
+// -------------------------------------------------
+
+class DigitUnderscore_Names_Functions_and_Methods {
+  function 70(): int { 80 }
+  lemma 120()
+    ensures this.70() == 80
+  {
+  }
+  
+  const 90 := () => 92
+  method 567(y: int) {
+    var m := this.90;
+    var k := this.90();
+    assert k == 92;
+    if 0 < y {
+      ghost var g := this.70();
+      this.567(y-1);
+      assert g == 80;
+    }
+  }
+
+  constructor 20_0(x: int)
+  {
+    var u := this.88;
+    assert u == DigitUnderscore_Names_Functions_and_Methods.88;
+  }
+
+  static const 88: bool
+
+  method 498() {
+    var p := new DigitUnderscore_Names_Functions_and_Methods.20_0(200);
+    p.567(100);
+  }
+
+  inductive predicate 500(y: int)
+  {
+    y == 0 || this.500(y-1)
+  }
+
+  inductive lemma 5_0_0(y: int)
+    requires this.500(y)
+    ensures 0 <= y
+  {
+  }
+  lemma Another(k: ORDINAL, y: int)
+    requires this.500#[k](y)
+    ensures 0 <= y
+  {
+    this.5_0_0#[k](y);
+  }
+
+  const x' := 3.0  // the prime in the name previously compiled incorrectly
+  method Regression(u: real) returns (v: real)
+  {
+    v := u * x';
+  }
+}
+
+// -------------------------------------------------
+// once buggy for method calls
+
+module TypeInstantiations {
+  function method F<G>(): int { 56 }
+  function method H<G>(g: G): int { 57 }
+  method M<G>() returns (r: int) { r := 100; }
+  method N<G>(g: G) returns (r: int) { r := 101; }
+
+  class GenCl<U> {
+    static function method Static<G>(): int { 58 }
+    function method Inst<G>(): int { 59 }
+    static method Ms<G>() returns (r: int) { r := 102; }
+    method Mi<G>() returns (r: int) { r := 103; }
+  }
+
+  method TestMain() {
+    var x := F<char>();
+    var ch: char;
+    var y := H(ch);
+    print x, " ", y, "\n";
+
+    var a0 := GenCl<char>.Static<real>();
+    var cl := new GenCl<char>;
+    var a1 := cl.Inst<real>();
+    print a0, " ", a1, "\n";
+
+    x := M<char>();
+    y := N(ch);
+    print x, " ", y, "\n";
+
+    a0 := GenCl<char>.Ms<real>();
+    a1 := cl.Mi<real>();
+    print a0, " ", a1, "\n";
+  }
+}
+
+// -------------------------------------------------
+// once buggy -- tail recursion where type parameters change
+
+module TailRecursionWhereTypeParametersChange {
+  method TestMain() {
+    Compute<real>(5);  // expected output: 0.0 False False
+  }
+
+  // Ostensibly, this looks like a tail recursive method. However, a
+  // recursive call that changes the type arguments cannot be compiled
+  // using a tail-recursive goto. Therefore, this method is rejected
+  // as tail recursive (which means that, for a large enough "n", it
+  // can run out of stack space).
+  method Compute<G(0)>(n: nat)
+  {
+    if n == 0 {
+      print "\n";
+    } else if n % 2 == 0 {
+      Compute<bool>(n-1);
+    } else {
+      var g: G;
+      print g, " ";
+      Compute<G>(n-1);
+    }
+  }
+}
+
+// -------------------------------------------------
+
+module GeneralMaps {
+  method Test() {
+    var m := map x | 2 <= x < 6 :: x+1;
+    print m, "\n";
+    m := map y | 2 <= y < 6 :: y+1 := y+3;
+    print m, "\n";
+    m := map y | 2 <= y < 6 :: y+1 := 10;
+    print m.Items, "\n";
+    print m.Keys, "\n";
+    print m.Values, "\n";
+  }
+}
+
+// -------------------------------------------------
+
+module Cardinalities {
+  method Test() {
+    var s := "hello";
+    var q := [0, 2, 4];
+    var t := {s};
+    var m := multiset{3, 5, 3};
+    var p := map[false := s, true := s];
+    print |s|, " ", |q|, " ", |t|, " ", |m|, " ", |p|, "\n";
+  }
+}
+
+// -------------------------------------------------
+
+module AltLoop {
+  method Test() {
+    var m, n := 5, 2;
+    while
+      decreases m + n
+    {
+      case 0 < n =>
+        print n, " ";
+        n := n - 1;
+      case n == 0 < m =>
+        print m, " ";
+        m := m - 1;
+    }
+    print "\n";
+  }
 }

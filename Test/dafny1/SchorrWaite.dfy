@@ -7,7 +7,7 @@
 // Copyright (c) 2008, Microsoft.
 
 class Node {
-  var children: seq<Node>
+  var children: seq<Node?>
   var marked: bool
   var childrenVisited: int
   ghost var pathFromRoot: Path
@@ -20,7 +20,7 @@ class Main {
   method RecursiveMark(root: Node, ghost S: set<Node>)
     requires root in S
     // S is closed under 'children':
-    requires forall n :: n in S ==> n != null &&
+    requires forall n :: n in S ==>
                 forall ch :: ch in n.children ==> ch == null || ch in S
     requires forall n :: n in S ==> !n.marked && n.childrenVisited == 0
     modifies S
@@ -36,13 +36,13 @@ class Main {
   }
 
   method RecursiveMarkWorker(root: Node, ghost S: set<Node>, ghost stackNodes: set<Node>)
-    requires root != null && root in S
-    requires forall n :: n in S ==> n != null &&
+    requires root in S
+    requires forall n :: n in S ==>
                 forall ch :: ch in n.children ==> ch == null || ch in S
     requires forall n :: n in S && n.marked ==>
                 n in stackNodes ||
                 forall ch :: ch in n.children && ch != null ==> ch.marked
-    requires forall n :: n in stackNodes ==> n != null && n.marked
+    requires forall n :: n in stackNodes ==> n.marked
     modifies S
     ensures root.marked
     // nodes reachable from 'root' are marked:
@@ -85,7 +85,7 @@ class Main {
   method IterativeMark(root: Node, ghost S: set<Node>)
     requires root in S
     // S is closed under 'children':
-    requires forall n :: n in S ==> n != null &&
+    requires forall n :: n in S ==>
                 forall ch :: ch in n.children ==> ch == null || ch in S
     requires forall n :: n in S ==> !n.marked && n.childrenVisited == 0
     modifies S
@@ -152,14 +152,12 @@ class Main {
 
   predicate Reachable(from: Node, to: Node, S: set<Node>)
     reads S
-    requires null !in S
   {
     exists via :: ReachableVia(from, via, to, S)
   }
 
   predicate ReachableVia(from: Node, via: Path, to: Node, S: set<Node>)
     reads S
-    requires null !in S
     decreases via
   {
     match via
@@ -170,7 +168,7 @@ class Main {
   method SchorrWaite(root: Node, ghost S: set<Node>)
     requires root in S
     // S is closed under 'children':
-    requires forall n :: n in S ==> n != null &&
+    requires forall n :: n in S ==>
                 forall ch :: ch in n.children ==> ch == null || ch in S
     // the graph starts off with nothing marked and nothing being indicated as currently being visited:
     requires forall n :: n in S ==> !n.marked && n.childrenVisited == 0
@@ -187,14 +185,14 @@ class Main {
                 n.children == old(n.children)
   {
     var t := root;
-    var p: Node := null;  // parent of t in original graph
+    var p: Node? := null;  // parent of t in original graph
     ghost var path := Path.Empty;
     t.marked := true;
     t.pathFromRoot := path;
     ghost var stackNodes: seq<Node> := [];
     ghost var unmarkedNodes := S - {t};
     while true
-      invariant root.marked && t != null && t in S && t !in stackNodes
+      invariant root.marked && t in S && t !in stackNodes
       invariant |stackNodes| == 0 <==> p == null
       invariant 0 < |stackNodes| ==> p == stackNodes[|stackNodes|-1]
       // stackNodes has no duplicates:
@@ -217,11 +215,10 @@ class Main {
                   forall j :: 0 <= j < |n.children| ==>
                     j == n.childrenVisited || n.children[j] == old(n.children[j])
       // every marked node is reachable:
-      invariant old(allocated(path));  // needed to show 'path' worthy as argument to old(Reachable(...))
-      invariant old(ReachableVia(root, path, t, S));
-      invariant forall n, pth {:nowarn} :: n in S && n.marked && pth == n.pathFromRoot ==> old(allocated(pth))
-      invariant forall n, pth :: n in S && n.marked && pth == n.pathFromRoot ==>
-                  old(ReachableVia(root, pth, n, S))
+      invariant old(allocated(path))  // needed to show 'path' worthy as argument to old(Reachable(...))
+      invariant old(ReachableVia(root, path, t, S))
+      invariant forall n :: n in S && n.marked ==> var pth := n.pathFromRoot; old(allocated(pth))
+      invariant forall n :: n in S && n.marked ==> var pth := n.pathFromRoot; old(ReachableVia(root, pth, n, S))
       invariant forall n :: n in S && n.marked ==> old(Reachable(root, n, S))
       // the current values of m.children[m.childrenVisited] for m's on the stack:
       invariant 0 < |stackNodes| ==> stackNodes[0].children[stackNodes[0].childrenVisited] == null
@@ -242,8 +239,7 @@ class Main {
           return;
         }
         var oldP := p.children[p.childrenVisited];
-        // p.children[p.childrenVisited] := t;
-        p.children := p.children[..p.childrenVisited] + [t] + p.children[p.childrenVisited + 1..];
+        p.children := p.children[p.childrenVisited := t];
         t := p;
         p := oldP;
         stackNodes := stackNodes[..|stackNodes| - 1];
@@ -258,8 +254,7 @@ class Main {
         // push
 
         var newT := t.children[t.childrenVisited];
-        // t.children[t.childrenVisited] := p;
-        t.children := t.children[..t.childrenVisited] + [p] + t.children[t.childrenVisited + 1..];
+        t.children := t.children[t.childrenVisited := p];
         p := t;
         stackNodes := stackNodes + [t];
         path := Path.Extend(path, t);

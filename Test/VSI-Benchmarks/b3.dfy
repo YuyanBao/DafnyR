@@ -42,11 +42,9 @@ class Comparable {
 
 
 class Benchmark3 {
-
   method Sort(q: Queue<int>) returns (r: Queue<int>)
-    requires q != null;
     modifies q;
-    ensures r != null && fresh(r);
+    ensures fresh(r);
     ensures |r.contents| == |old(q.contents)|;
     ensures forall i, j :: 0 <= i < j < |r.contents| ==> r.Get(i) <= r.Get(j);
     // the final Queue is a permutation of the input Queue
@@ -69,10 +67,9 @@ class Benchmark3 {
       r.Enqueue(m);
     }
   }
-  
-  
+
   method RemoveMin(q: Queue<int>) returns (m: int, k: int) //m is the min, k is m's index in q
-    requires q != null && |q.contents| != 0;
+    requires |q.contents| != 0;
     modifies q;
     ensures |old(q.contents)| == |q.contents| + 1;
     ensures 0 <= k < |old(q.contents)| && old(q.contents[k]) == m;
@@ -97,7 +94,21 @@ class Benchmark3 {
       j := j+1;
     }
 
-    j := 0;
+    Rotate(q, k);
+
+    assert q.contents == old(q.contents)[k..] + old(q.contents)[..k];
+    ghost var qq := q.contents;
+    m := q.Dequeue();
+    assert m == qq[0];
+    assert [m] + q.contents == qq && q.contents == qq[1..];
+  }
+
+  method Rotate(q: Queue<int>, k: nat)
+    requires k <= |q.contents|
+    modifies q
+    ensures q.contents == old(q.contents)[k..] + old(q.contents)[..k]
+  {
+    var j := 0;
     while j < k
       invariant j <= k;
       invariant q.contents == old(q.contents)[j..] + old(q.contents)[..j]; 
@@ -108,16 +119,7 @@ class Benchmark3 {
       RotationLemma(old(q.contents), j, qc0, q.contents);
       j := j+1;
     }
-
     assert j == k;  
-    assert q.contents == old(q.contents)[k..] + old(q.contents)[..k];
-    ghost var qq := q.contents;
-    m := q.Dequeue();
-    assert m == qq[0];
-    assert [m] + q.contents == qq && q.contents == qq[1..];
-    assert |old(q.contents)| == |q.contents| + 1;
-
-    assert q.contents == old(q.contents)[k+1..] + old(q.contents)[..k];  
   }
 
   lemma RotationLemma(O: seq, j: nat, A: seq, C: seq)
@@ -140,6 +142,7 @@ class Benchmark3 {
       { assert [O[j]] == O[j..j+1]; }
       O[j+1..] + O[..j] + O[j..j+1];
       O[j+1..] + (O[..j] + O[j..j+1]);
+      { assert O[..j] + O[j..j+1] == O[..j+1]; }
       O[j+1..] + O[..j+1];
     }
   }

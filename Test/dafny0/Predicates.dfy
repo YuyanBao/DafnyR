@@ -1,4 +1,4 @@
-// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" /autoTriggers:1  "%s" > "%t"
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
 // RUN: %diff "%s.expect" "%t"
 
 module A {
@@ -42,15 +42,15 @@ module Loose {
     protected predicate Valid()
       reads this, Repr;
     {
-      this in Repr && null !in Repr &&
+      this in Repr &&
       0 <= N
     }
     constructor Init()
-      modifies this;
       ensures Valid() && fresh(Repr - {this});
     {
       N, Repr := 0, {this};
     }
+    
     method Inc()
       requires Valid();
       modifies Repr;
@@ -150,7 +150,7 @@ module Q0 {
     }
     method M()
       modifies this;
-      ensures forall c: C :: c != null ==> c.P();
+      ensures forall c: C :: allocated(c) ==> c.P();
     {  // error: in module Q1, the postcondition no longer holds
     }
     predicate Q()

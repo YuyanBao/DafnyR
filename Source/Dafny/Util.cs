@@ -10,11 +10,16 @@ using Microsoft.Boogie;
 namespace Microsoft.Dafny {
   public class Util
   {
+    public static string Comma(IEnumerable<string> l) {
+      return Comma(l, s => s);
+    }
+
     public static string Comma<T>(IEnumerable<T> l, Func<T, string> f) {
       return Comma(",", l, f);
     }
 
     public static string Comma<T>(string comma, IEnumerable<T> l, Func<T,string> f) {
+      Contract.Requires(comma != null);
       string res = "";
       string c = "";
       foreach(var t in l) {
@@ -24,7 +29,35 @@ namespace Microsoft.Dafny {
       return res;
     }
 
-    public static List<B> Map<A,B>(IEnumerable<A> xs, Func<A,B> f)
+    public static string Comma(int count, Func<int, string> f) {
+      Contract.Requires(0 <= count);
+      return Comma(",", count, f);
+    }
+
+    public static string Comma(string comma, int count, Func<int, string> f) {
+      Contract.Requires(comma != null);
+      Contract.Requires(0 <= count);
+      string res = "";
+      string c = "";
+      for (int i = 0; i < count; i++) {
+        res += c + f(i);
+        c = comma;
+      }
+      return res;
+    }
+
+    public static string Repeat(string str, int times) {
+      Contract.Requires(times >= 0);
+      Contract.Requires(str != null);
+
+      var ans = "";
+      for (var i = 0; i < times; i++) {
+        ans += str;
+      }
+      return ans;
+    }
+
+    public static List<B> Map<A, B>(IEnumerable<A> xs, Func<A, B> f)
     {
       List<B> ys = new List<B>();
       foreach (A x in xs) {
@@ -128,7 +161,7 @@ namespace Microsoft.Dafny {
               case '\'': special = '\''; break;
               case '\"': special = '\"'; break;
               case '\\': special = '\\'; break;
-              case '\0': special = '\0'; break;
+              case '0': special = '\0'; break;
               case 'n': special = '\n'; break;
               case 'r': special = '\r'; break;
               case 't': special = '\t'; break;
@@ -167,6 +200,37 @@ namespace Microsoft.Dafny {
       } else {
         return ch - '0';
       }
+    }
+
+    /// <summary>
+    /// Add "fe" to "mod", if "performThisDeprecationCheck" is "false".
+    /// Otherwise, first strip "fe" of certain easy occurrences of "this", and for each one giving a warning about
+    /// that "this" is deprecated in modifies clauses of constructors.
+    /// This method may modify "fe" and the subexpressions contained within "fe".
+    /// </summary>
+    public static void AddFrameExpression(List<FrameExpression> mod, FrameExpression fe, bool performThisDeprecationCheck, Errors errors) {
+      Contract.Requires(mod != null);
+      Contract.Requires(fe != null);
+      Contract.Requires(errors != null);
+      if (performThisDeprecationCheck) {
+        if (fe.E is ThisExpr) {
+          errors.Deprecated(fe.E.tok, "Dafny's constructors no longer need 'this' to be listed in modifies clauses");
+          return;
+        } else if (fe.E is SetDisplayExpr) {
+          var s = (SetDisplayExpr)fe.E;
+          var deprecated = s.Elements.FindAll(e => e is ThisExpr);
+          if (deprecated.Count != 0) {
+            foreach (var e in deprecated) {
+              errors.Deprecated(e.tok, "Dafny's constructors no longer need 'this' to be listed in modifies clauses");
+            }
+            s.Elements.RemoveAll(e => e is ThisExpr);
+            if (s.Elements.Count == 0) {
+              return;
+            }
+          }
+        }
+      }
+      mod.Add(fe);
     }
 
     /// <summary>

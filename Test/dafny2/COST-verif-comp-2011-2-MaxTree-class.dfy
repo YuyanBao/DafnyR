@@ -71,14 +71,14 @@ appropriate.
 
 class Tree {
   // an empty tree is represented by a Tree object with left==this==right
-  var value: int;
-  var left: Tree;
-  var right: Tree;
+  var value: int
+  var left: Tree?
+  var right: Tree?
 
-  ghost var Contents: seq<int>;
-  ghost var Repr: set<object>;
-  function Valid(): bool
-    reads this, Repr;
+  ghost var Contents: seq<int>
+  ghost var Repr: set<object>
+  predicate Valid()
+    reads this, Repr
   {
     this in Repr &&
     left != null && right != null &&
@@ -98,7 +98,6 @@ class Tree {
   }
 
   constructor Empty()
-    modifies this;
     ensures Valid() && Contents == [];
   {
     left, right := this, this;
@@ -107,9 +106,7 @@ class Tree {
   }
 
   constructor Node(lft: Tree, val: int, rgt: Tree)
-    requires lft != null && rgt != null && lft.Valid() && rgt.Valid();
-    requires this !in lft.Repr && this !in rgt.Repr;
-    modifies this;
+    requires lft.Valid() && rgt.Valid();
     ensures Valid() && Contents == lft.Contents + [val] + rgt.Contents;
   {
     left, value, right := lft, val, rgt;
@@ -117,10 +114,12 @@ class Tree {
     Repr := lft.Repr + {this} + rgt.Repr;
   }
 
-  lemma exists_intro<T>(P: T -> bool, x: T)
+  lemma exists_intro<T>(P: T ~> bool, x: T)
     requires P.requires(x)
     requires P(x)
-    ensures exists y :: P.requires(y) && P(y) { }
+    ensures exists y :: P.requires(y) && P(y)
+  {
+  }
 
   method ComputeMax() returns (mx: int)
     requires Valid() && !IsEmpty();

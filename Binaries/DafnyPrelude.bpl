@@ -19,6 +19,7 @@ const unique TBool : Ty;
 const unique TChar : Ty;
 const unique TInt  : Ty;
 const unique TReal : Ty;
+const unique TORDINAL  : Ty;
 function TBitvector(int) : Ty;
 function TSet(Ty)      : Ty;
 function TISet(Ty)     : Ty;
@@ -27,6 +28,8 @@ function TSeq(Ty)      : Ty;
 function TMap(Ty, Ty)  : Ty;
 function TIMap(Ty, Ty) : Ty;
 
+function Inv0_TBitvector(Ty) : int;
+axiom (forall w: int :: { TBitvector(w) } Inv0_TBitvector(TBitvector(w)) == w);
 function Inv0_TSet(Ty) : Ty;
 axiom (forall t: Ty :: { TSet(t) } Inv0_TSet(TSet(t)) == t);
 function Inv0_TISet(Ty) : Ty;
@@ -54,6 +57,7 @@ const unique TagBool     : TyTag;
 const unique TagChar     : TyTag;
 const unique TagInt      : TyTag;
 const unique TagReal     : TyTag;
+const unique TagORDINAL  : TyTag;
 const unique TagSet      : TyTag;
 const unique TagISet     : TyTag;
 const unique TagMultiSet : TyTag;
@@ -66,6 +70,7 @@ axiom Tag(TBool) == TagBool;
 axiom Tag(TChar) == TagChar;
 axiom Tag(TInt) == TagInt;
 axiom Tag(TReal) == TagReal;
+axiom Tag(TORDINAL) == TagORDINAL;
 axiom (forall t: Ty    :: { TSet(t) }      Tag(TSet(t))      == TagSet);
 axiom (forall t: Ty    :: { TISet(t) }     Tag(TISet(t))     == TagISet);
 axiom (forall t: Ty    :: { TMultiSet(t) } Tag(TMultiSet(t)) == TagMultiSet);
@@ -92,10 +97,20 @@ function char#FromInt(int): char;
 function char#ToInt(char): int;  // inverse of char#FromInt
 axiom (forall ch: char ::
   { char#ToInt(ch) } 
-  char#FromInt(char#ToInt(ch)) == ch);
+  char#FromInt(char#ToInt(ch)) == ch &&
+  0 <= char#ToInt(ch) && char#ToInt(ch) < 65536);
 axiom (forall n: int ::
   { char#FromInt(n) }
   0 <= n && n < 65536 ==> char#ToInt(char#FromInt(n)) == n);
+
+function char#Plus(char, char): char;
+function char#Minus(char, char): char;
+axiom (forall a: char, b: char ::
+  { char#Plus(a, b) }
+  char#Plus(a, b) == char#FromInt(char#ToInt(a) + char#ToInt(b)));
+axiom (forall a: char, b: char ::
+  { char#Minus(a, b) }
+  char#Minus(a, b) == char#FromInt(char#ToInt(a) - char#ToInt(b)));
 
 // ---------------------------------------------------------------
 // -- References -------------------------------------------------
@@ -179,11 +194,13 @@ axiom(forall v : int  :: { $Is(v,TInt) }  $Is(v,TInt));
 axiom(forall v : real :: { $Is(v,TReal) } $Is(v,TReal));
 axiom(forall v : bool :: { $Is(v,TBool) } $Is(v,TBool));
 axiom(forall v : char :: { $Is(v,TChar) } $Is(v,TChar));
+axiom(forall v : ORDINAL :: { $Is(v,TORDINAL) } $Is(v,TORDINAL));
 
 axiom(forall h : Heap, v : int  :: { $IsAlloc(v,TInt,h) }  $IsAlloc(v,TInt,h));
 axiom(forall h : Heap, v : real :: { $IsAlloc(v,TReal,h) } $IsAlloc(v,TReal,h));
 axiom(forall h : Heap, v : bool :: { $IsAlloc(v,TBool,h) } $IsAlloc(v,TBool,h));
 axiom(forall h : Heap, v : char :: { $IsAlloc(v,TChar,h) } $IsAlloc(v,TChar,h));
+axiom(forall h : Heap, v : ORDINAL :: { $IsAlloc(v,TORDINAL,h) } $IsAlloc(v,TORDINAL,h));
 
 axiom (forall v: Set Box, t0: Ty :: { $Is(v, TSet(t0)) }
   $Is(v, TSet(t0)) <==>
@@ -267,7 +284,7 @@ const unique class._System.set: ClassName;
 const unique class._System.seq: ClassName;
 const unique class._System.multiset: ClassName;
 
-function Tclass._System.object(): Ty;
+function Tclass._System.object?(): Ty;
 
 function /*{:never_pattern true}*/ dtype(ref): Ty; // changed from ClassName to Ty
 
@@ -287,7 +304,7 @@ function SetRef_to_SetBox(s: [ref]bool): Set Box;
 axiom (forall s: [ref]bool, bx: Box :: { SetRef_to_SetBox(s)[bx] }
   SetRef_to_SetBox(s)[bx] == s[$Unbox(bx): ref]);
 axiom (forall s: [ref]bool :: { SetRef_to_SetBox(s) }
-  $Is(SetRef_to_SetBox(s), TSet(Tclass._System.object())));
+  $Is(SetRef_to_SetBox(s), TSet(Tclass._System.object?())));
 
 // ---------------------------------------------------------------
 // -- Datatypes --------------------------------------------------
@@ -302,6 +319,98 @@ function DtRank(DatatypeType): int;
 function BoxRank(Box): int;
 
 axiom (forall d: DatatypeType :: {BoxRank($Box(d))} BoxRank($Box(d)) == DtRank(d));
+
+// ---------------------------------------------------------------
+// -- Big Ordinals -----------------------------------------------
+// ---------------------------------------------------------------
+
+type ORDINAL = Box;  // :| There are more big ordinals than boxes
+
+// The following two functions give an abstracton over all ordinals.
+// Function ORD#IsNat returns true when the ordinal is one of the natural
+// numbers.  Function ORD#Offset gives how many successors (that is,
+// +1 operations) an ordinal is above the nearest lower limit ordinal.
+// That is, if the ordinal is \lambda+n, then ORD#Offset returns n.
+function ORD#IsNat(ORDINAL): bool;
+function ORD#Offset(ORDINAL): int;
+axiom (forall o:ORDINAL :: { ORD#Offset(o) } 0 <= ORD#Offset(o));
+
+function {:inline} ORD#IsLimit(o: ORDINAL): bool { ORD#Offset(o) == 0 }
+function {:inline} ORD#IsSucc(o: ORDINAL): bool { 0 < ORD#Offset(o) }
+
+function ORD#FromNat(int): ORDINAL;
+axiom (forall n:int :: { ORD#FromNat(n) }
+  0 <= n ==> ORD#IsNat(ORD#FromNat(n)) && ORD#Offset(ORD#FromNat(n)) == n);
+axiom (forall o:ORDINAL :: { ORD#Offset(o) } { ORD#IsNat(o) }
+  ORD#IsNat(o) ==> o == ORD#FromNat(ORD#Offset(o)));
+
+function ORD#Less(ORDINAL, ORDINAL): bool;
+axiom (forall o,p: ORDINAL :: { ORD#Less(o,p) }
+  (ORD#Less(o,p) ==> o != p) &&  // irreflexivity
+  (ORD#IsNat(o) && !ORD#IsNat(p) ==> ORD#Less(o,p)) &&
+  (ORD#IsNat(o) && ORD#IsNat(p) ==> ORD#Less(o,p) == (ORD#Offset(o) < ORD#Offset(p))));
+// ORD#Less is irreflexive:
+axiom (forall o,p: ORDINAL :: { ORD#Less(o,p) }
+  ORD#Less(o,p) ==> o != p);
+// ORD#Less is trichotomous:
+axiom (forall o,p: ORDINAL :: { ORD#Less(o,p), ORD#Less(p,o) }
+  ORD#Less(o,p) || o == p || ORD#Less(p,o));
+// ORD#Less is transitive:
+axiom (forall o,p,r: ORDINAL ::
+  { ORD#Less(o,p), ORD#Less(p,r) }
+  { ORD#Less(o,p), ORD#Less(o,r) }
+  ORD#Less(o,p) && ORD#Less(p,r) ==> ORD#Less(o,r));
+
+// ORD#LessThanLimit is a synonym of ORD#Less, introduced for more selected triggering
+function ORD#LessThanLimit(ORDINAL, ORDINAL): bool;
+axiom (forall o,p: ORDINAL :: { ORD#LessThanLimit(o, p) }
+  ORD#LessThanLimit(o, p) == ORD#Less(o, p));
+
+function ORD#Plus(ORDINAL, ORDINAL): ORDINAL;
+axiom (forall o,p: ORDINAL :: { ORD#Plus(o,p) }
+  (ORD#IsNat(ORD#Plus(o,p)) ==> ORD#IsNat(o) && ORD#IsNat(p)) &&
+  (ORD#IsNat(p) ==>
+    ORD#IsNat(ORD#Plus(o,p)) == ORD#IsNat(o) &&
+    ORD#Offset(ORD#Plus(o,p)) == ORD#Offset(o) + ORD#Offset(p)));
+axiom (forall o,p: ORDINAL :: { ORD#Plus(o,p) }
+  (o == ORD#Plus(o, p) || ORD#Less(o, ORD#Plus(o, p))) &&
+  (p == ORD#Plus(o, p) || ORD#Less(p, ORD#Plus(o, p))));
+axiom (forall o,p: ORDINAL :: { ORD#Plus(o,p) }
+  (o == ORD#FromNat(0) ==> ORD#Plus(o, p) == p) &&
+  (p == ORD#FromNat(0) ==> ORD#Plus(o, p) == o));
+
+function ORD#Minus(ORDINAL, ORDINAL): ORDINAL;
+axiom (forall o,p: ORDINAL :: { ORD#Minus(o,p) }
+  ORD#IsNat(p) && ORD#Offset(p) <= ORD#Offset(o) ==>
+    ORD#IsNat(ORD#Minus(o,p)) == ORD#IsNat(o) &&
+    ORD#Offset(ORD#Minus(o,p)) == ORD#Offset(o) - ORD#Offset(p));
+axiom (forall o,p: ORDINAL :: { ORD#Minus(o,p) }
+  ORD#IsNat(p) && ORD#Offset(p) <= ORD#Offset(o) ==>
+    (p == ORD#FromNat(0) && ORD#Minus(o, p) == o) ||
+    (p != ORD#FromNat(0) && ORD#Less(ORD#Minus(o, p), o)));
+
+// o+m+n == o+(m+n)
+axiom (forall o: ORDINAL, m,n: int ::
+  { ORD#Plus(ORD#Plus(o, ORD#FromNat(m)), ORD#FromNat(n)) } 
+  0 <= m && 0 <= n ==>
+  ORD#Plus(ORD#Plus(o, ORD#FromNat(m)), ORD#FromNat(n)) == ORD#Plus(o, ORD#FromNat(m+n)));
+// o-m-n == o+(m+n)
+axiom (forall o: ORDINAL, m,n: int ::
+  { ORD#Minus(ORD#Minus(o, ORD#FromNat(m)), ORD#FromNat(n)) } 
+  0 <= m && 0 <= n && m+n <= ORD#Offset(o) ==>
+  ORD#Minus(ORD#Minus(o, ORD#FromNat(m)), ORD#FromNat(n)) == ORD#Minus(o, ORD#FromNat(m+n)));
+// o+m-n == EITHER o+(m-n) OR o-(n-m)
+axiom (forall o: ORDINAL, m,n: int ::
+  { ORD#Minus(ORD#Plus(o, ORD#FromNat(m)), ORD#FromNat(n)) } 
+  0 <= m && 0 <= n && n <= ORD#Offset(o) + m ==>
+    (0 <= m - n ==> ORD#Minus(ORD#Plus(o, ORD#FromNat(m)), ORD#FromNat(n)) == ORD#Plus(o, ORD#FromNat(m-n))) &&
+    (m - n <= 0 ==> ORD#Minus(ORD#Plus(o, ORD#FromNat(m)), ORD#FromNat(n)) == ORD#Minus(o, ORD#FromNat(n-m))));
+// o-m+n == EITHER o-(m-n) OR o+(n-m)
+axiom (forall o: ORDINAL, m,n: int ::
+  { ORD#Plus(ORD#Minus(o, ORD#FromNat(m)), ORD#FromNat(n)) } 
+  0 <= m && 0 <= n && n <= ORD#Offset(o) + m ==>
+    (0 <= m - n ==> ORD#Plus(ORD#Minus(o, ORD#FromNat(m)), ORD#FromNat(n)) == ORD#Minus(o, ORD#FromNat(m-n))) &&
+    (m - n <= 0 ==> ORD#Plus(ORD#Minus(o, ORD#FromNat(m)), ORD#FromNat(n)) == ORD#Plus(o, ORD#FromNat(n-m))));
 
 // ---------------------------------------------------------------
 // -- Axiom contexts ---------------------------------------------
@@ -373,7 +482,10 @@ axiom(forall h, k : Heap, bx : Box, t : Ty ::
 // No axioms for $Is and $IsBox since they don't talk about the heap.
 
 const unique alloc: Field bool;
-axiom FDim(alloc) == 0 && !$IsGhostField(alloc);  // treat as non-ghost field, because it cannot be changed by ghost code
+const unique allocName: NameFamily;
+axiom FDim(alloc) == 0 &&
+  DeclName(alloc) == allocName &&
+  !$IsGhostField(alloc);  // treat as non-ghost field, because it cannot be changed by ghost code
 
 // ---------------------------------------------------------------
 // -- Arrays -----------------------------------------------------
@@ -403,6 +515,12 @@ function {:inline} update<alpha>(H:Heap, r:ref, f:Field alpha, v:alpha): Heap { 
 function $IsGoodHeap(Heap): bool;
 function $IsHeapAnchor(Heap): bool;
 var $Heap: Heap where $IsGoodHeap($Heap) && $IsHeapAnchor($Heap);
+
+// The following is used as a reference heap in places where the translation needs a heap
+// but the expression generated is really one that is (at least in a correct program)
+// independent of the heap.
+const $OneHeap: Heap;
+axiom $IsGoodHeap($OneHeap);
 
 function $HeapSucc(Heap, Heap): bool;
 axiom (forall<alpha> h: Heap, r: ref, f: Field alpha, x: alpha :: { update(h, r, f, x) }
@@ -787,7 +905,7 @@ function Seq#Length<T>(Seq T): int;
 axiom (forall<T> s: Seq T :: { Seq#Length(s) } 0 <= Seq#Length(s));
 
 function Seq#Empty<T>(): Seq T;
-axiom (forall<T> :: Seq#Length(Seq#Empty(): Seq T) == 0);
+axiom (forall<T> :: { Seq#Empty(): Seq T } Seq#Length(Seq#Empty(): Seq T) == 0);
 axiom (forall<T> s: Seq T :: { Seq#Length(s) }
   (Seq#Length(s) == 0 ==> s == Seq#Empty())
 // The following would be a nice fact to include, because it would enable verifying the
@@ -804,7 +922,15 @@ function Seq#Singleton<T>(T): Seq T;
 axiom (forall<T> t: T :: { Seq#Length(Seq#Singleton(t)) } Seq#Length(Seq#Singleton(t)) == 1);
 
 function Seq#Build<T>(s: Seq T, val: T): Seq T;
-axiom (forall<T> s: Seq T, v: T :: { Seq#Length(Seq#Build(s,v)) }
+function Seq#Build_inv0<T>(s: Seq T) : Seq T;
+function Seq#Build_inv1<T>(s: Seq T) : T;
+axiom (forall<T> s: Seq T, val: T ::
+  { Seq#Build(s, val) }
+  Seq#Build_inv0(Seq#Build(s, val)) == s &&
+  Seq#Build_inv1(Seq#Build(s, val)) == val);
+
+axiom (forall<T> s: Seq T, v: T ::
+  { Seq#Build(s,v) }
   Seq#Length(Seq#Build(s,v)) == 1 + Seq#Length(s));
 axiom (forall<T> s: Seq T, i: int, v: T :: { Seq#Index(Seq#Build(s,v), i) }
   (i == Seq#Length(s) ==> Seq#Index(Seq#Build(s,v), i) == v) &&
@@ -903,10 +1029,13 @@ axiom (forall<T> s: Seq T, n: int, k: int ::
   0 <= n && n <= k && k < Seq#Length(s) ==>
     Seq#Index(Seq#Drop(s,n), k-n) == Seq#Index(s, k));
 
-axiom (forall<T> s, t: Seq T ::
-  { Seq#Append(s, t) }
-  Seq#Take(Seq#Append(s, t), Seq#Length(s)) == s &&
-  Seq#Drop(Seq#Append(s, t), Seq#Length(s)) == t);
+axiom (forall<T> s, t: Seq T, n: int ::
+  { Seq#Take(Seq#Append(s, t), n) }
+  { Seq#Drop(Seq#Append(s, t), n) }
+  n == Seq#Length(s)
+  ==>
+  Seq#Take(Seq#Append(s, t), n) == s &&
+  Seq#Drop(Seq#Append(s, t), n) == t);
 
 function Seq#FromArray(h: Heap, a: ref): Seq Box;
 axiom (forall h: Heap, a: ref ::
@@ -986,11 +1115,59 @@ axiom (forall<T> s: Seq T, m, n: int :: { Seq#Drop(Seq#Drop(s, m), n) }
 
 type Map U V;
 
-function Map#Domain<U, V>(Map U V): [U] bool;
-function Map#Elements<U, V>(Map U V): [U]V;
+// A Map is defined by three functions, Map#Domain, Map#Elements, and #Map#Card.
 
-function Map#Card<U, V>(Map U V): int;
-axiom (forall<U, V> m: Map U V :: { Map#Card(m) } 0 <= Map#Card(m));
+function Map#Domain<U,V>(Map U V) : Set U;
+
+function Map#Elements<U,V>(Map U V) : [U]V;
+
+function Map#Card<U,V>(Map U V) : int;
+
+axiom (forall<U,V> m: Map U V :: { Map#Card(m) } 0 <= Map#Card(m));
+
+// The set of Keys of a Map are available by Map#Domain, and the cardinality of that
+// set is given by Map#Card.
+
+axiom (forall<U,V> m: Map U V :: { Set#Card(Map#Domain(m)) }
+  Set#Card(Map#Domain(m)) == Map#Card(m));
+
+// The set of Values of a Map can be obtained by the function Map#Values, which is
+// defined as follows.  Remember, a Set is defined by membership (using Boogie's
+// square brackets) and Map#Card, so we need to define what these mean for the Set
+// returned by Map#Values.
+
+function Map#Values<U,V>(Map U V) : Set V;
+
+axiom (forall<U,V> m: Map U V, v: V :: { Map#Values(m)[v] }
+  Map#Values(m)[v] ==
+	(exists u: U :: { Map#Domain(m)[u] } { Map#Elements(m)[u] }	
+	  Map#Domain(m)[u] &&
+    v == Map#Elements(m)[u]));
+
+// The set of Items--that is, (key,value) pairs--of a Map can be obtained by the
+// function Map#Items.  Again, we need to define membership of Set#Card for this
+// set.  Everywhere else in this axiomatization, Map is parameterized by types U V,
+// even though Dafny only ever instantiates U V with Box Box.  This makes the
+// axiomatization more generic.  Function Map#Items, however, returns a set of
+// pairs, and the axiomatization of pairs is Dafny specific.  Therefore, the
+// definition of Map#Items here is to be considered Dafny specific.  Also, note
+// that it relies on the two destructors for 2-tuples.
+
+function Map#Items<U,V>(Map U V) : Set Box;
+
+function _System.Tuple2._0(DatatypeType) : Box;
+
+function _System.Tuple2._1(DatatypeType) : Box;
+
+axiom (forall<U,V> m: Map U V :: { Set#Card(Map#Items(m)) }
+  Set#Card(Map#Items(m)) == Map#Card(m));
+
+axiom (forall m: Map Box Box, item: Box :: { Map#Items(m)[item] }
+  Map#Items(m)[item] <==>
+    Map#Domain(m)[_System.Tuple2._0($Unbox(item))] &&
+    Map#Elements(m)[_System.Tuple2._0($Unbox(item))] == _System.Tuple2._1($Unbox(item)));
+
+// Here are the operations that produce Map values.
 
 function Map#Empty<U, V>(): Map U V;
 axiom (forall<U, V> u: U ::
@@ -1029,7 +1206,6 @@ axiom (forall<U, V> m: Map U V, u: U, v: V :: { Map#Card(Map#Build(m, u, v)) }
 axiom (forall<U, V> m: Map U V, u: U, v: V :: { Map#Card(Map#Build(m, u, v)) }
   !Map#Domain(m)[u] ==> Map#Card(Map#Build(m, u, v)) == Map#Card(m) + 1);
 
-
 //equality for maps
 function Map#Equal<U, V>(Map U V, Map U V): bool;
 axiom (forall<U, V> m: Map U V, m': Map U V::
@@ -1052,9 +1228,42 @@ axiom (forall<U, V> m: Map U V, m': Map U V ::
 
 type IMap U V;
 
-function IMap#Domain<U, V>(IMap U V): [U] bool;
-function IMap#Elements<U, V>(IMap U V): [U]V;
+// A IMap is defined by two functions, Map#Domain and Map#Elements.
 
+function IMap#Domain<U,V>(IMap U V) : Set U;
+
+function IMap#Elements<U,V>(IMap U V) : [U]V;
+
+// The set of Values of a IMap can be obtained by the function IMap#Values, which is
+// defined as follows.  Remember, a ISet is defined by membership (using Boogie's
+// square brackets) so we need to define what these mean for the Set
+// returned by Map#Values.
+
+function IMap#Values<U,V>(IMap U V) : Set V;
+
+axiom (forall<U,V> m: IMap U V, v: V :: { IMap#Values(m)[v] }
+  IMap#Values(m)[v] ==
+	(exists u: U :: { IMap#Domain(m)[u] } { IMap#Elements(m)[u] }	
+	  IMap#Domain(m)[u] &&
+    v == IMap#Elements(m)[u]));
+
+// The set of Items--that is, (key,value) pairs--of a Map can be obtained by the
+// function IMap#Items.  
+// Everywhere else in this axiomatization, IMap is parameterized by types U V,
+// even though Dafny only ever instantiates U V with Box Box.  This makes the
+// axiomatization more generic.  Function IMap#Items, however, returns a set of
+// pairs, and the axiomatization of pairs is Dafny specific.  Therefore, the
+// definition of IMap#Items here is to be considered Dafny specific.  Also, note
+// that it relies on the two destructors for 2-tuples.
+
+function IMap#Items<U,V>(IMap U V) : Set Box;
+
+axiom (forall m: IMap Box Box, item: Box :: { IMap#Items(m)[item] }
+  IMap#Items(m)[item] <==>
+    IMap#Domain(m)[_System.Tuple2._0($Unbox(item))] &&
+    IMap#Elements(m)[_System.Tuple2._0($Unbox(item))] == _System.Tuple2._1($Unbox(item)));
+
+// Here are the operations that produce Map values.
 function IMap#Empty<U, V>(): IMap U V;
 axiom (forall<U, V> u: U ::
         { IMap#Domain(IMap#Empty(): IMap U V)[u] }
@@ -1108,5 +1317,45 @@ function {:never_pattern true} INTERNAL_lt_boogie(x:int, y:int) : bool { x < y }
 function {:never_pattern true} INTERNAL_le_boogie(x:int, y:int) : bool { x <= y }
 function {:never_pattern true} INTERNAL_gt_boogie(x:int, y:int) : bool { x > y }
 function {:never_pattern true} INTERNAL_ge_boogie(x:int, y:int) : bool { x >= y }
+
+function Mul(x, y: int): int { x * y }
+function Div(x, y: int): int { x div y }
+function Mod(x, y: int): int { x mod y }
+function Add(x, y: int): int { x + y }
+function Sub(x, y: int): int { x - y }
+
+#if ARITH_DISTR
+axiom (forall x, y, z: int ::
+  { Mul(Add(x, y), z) }
+  Mul(Add(x, y), z) == Add(Mul(x, z), Mul(y, z)));
+axiom (forall x,y,z: int ::
+  { Mul(x, Add(y, z)) }
+  Mul(x, Add(y, z)) == Add(Mul(x, y), Mul(x, z)));
+//axiom (forall x, y, z: int ::
+//  { Mul(Sub(x, y), z) }  
+//  Mul(Sub(x, y), z) == Sub(Mul(x, z), Mul(y, z)));
+#endif
+#if ARITH_MUL_DIV_MOD
+axiom (forall x, y: int ::
+  { Div(x, y), Mod(x, y) }
+  { Mul(Div(x, y), y) }
+  y != 0 ==>
+  Mul(Div(x, y), y) + Mod(x, y) == x);
+#endif
+#if ARITH_MUL_SIGN
+axiom (forall x, y: int ::
+  { Mul(x, y) }   
+  ((0 <= x && 0 <= y) || (x <= 0 && y <= 0) ==> 0 <= Mul(x, y)));
+#endif
+#if ARITH_MUL_COMM
+axiom (forall x, y: int ::
+  { Mul(x, y) }
+  Mul(x, y) == Mul(y, x));
+#endif
+#if ARITH_MUL_ASSOC
+axiom (forall x, y, z: int ::
+  { Mul(x, Mul(y, z)) }
+  Mul(x, Mul(y, z)) == mul(mul(x, y), z));
+#endif
 
 // -------------------------------------------------------------------------
