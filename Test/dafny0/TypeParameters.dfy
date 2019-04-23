@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 class C<U(==)> {
   method M<T>(x: T, u: U) returns (y: T)
     ensures x == y && u == u;
@@ -102,7 +105,7 @@ class CClient {
 
 // -------------------------
 
-static function IsCelebrity<Person>(c: Person, people: set<Person>): bool
+function IsCelebrity<Person>(c: Person, people: set<Person>): bool
   requires c == c || c in people;
 {
   false
@@ -116,7 +119,7 @@ method FindCelebrity3(people: set<int>, ghost c: int)
   b := F(c, people);
 }
 
-static function F(c: int, people: set<int>): bool
+function F(c: int, people: set<int>): bool
   requires IsCelebrity(c, people);
 {
   false
@@ -131,6 +134,21 @@ function Cool(b: bool): bool
   b
 }
 
+function Rockin'<G>(g: G): G
+{
+  var h := g;
+  h
+}
+
+function Groovy<G>(g: G, x: int): G
+{
+  var h := g;
+  if x == 80 then
+    RogerThat(h)
+  else
+    [h][0]
+}
+
 method IsRogerCool(n: int)
   requires RogerThat(true);  // once upon a time, this caused the translator to produce bad Boogie
 {
@@ -138,6 +156,12 @@ method IsRogerCool(n: int)
     assert Cool(2 < 3 && n < n && n < n+1);  // the error message here will peek into the argument of Cool
   } else if (*) {
     assert RogerThat(2 < 3 && n < n && n < n+1);  // same here; cool, huh?
+  } else if (*) {
+    assert Rockin'(false);  // error
+  } else if (*) {
+    assert Groovy(n < n, 80);  // error
+  } else if (*) {
+    assert Groovy(n + 1 <= n, 81);  // error
   }
 }
 
@@ -188,4 +212,144 @@ method TyKn_Main(k0: TyKn_K) {
   var k2 := c.M();
   assert k2 != null ==> k2.F() == 176;  // the canCall mechanism does the trick here, but so does the encoding
                                         // via k2's where clause
+}
+
+// ------------------- there was once a bug in the handling of the following example
+
+module OneLayer
+{
+  datatype wrap<V> = Wrap(V)
+}
+
+module TwoLayers
+{
+  import OneLayer
+  datatype wrap2<T> = Wrap2(get: OneLayer.wrap<T>)
+  
+  function F<U>(w: wrap2<U>) : OneLayer.wrap<U>
+  {
+    match w
+    case Wrap2(a) => a
+  }
+  function G<U>(w: wrap2<U>) : OneLayer.wrap<U>
+  {
+    match w
+    case Wrap2(a) => w.get
+  }
+  function H<U>(w: wrap2<U>) : OneLayer.wrap<U>
+  {
+    w.get
+  }
+}
+
+// ---------------------------------------------------------------------
+
+datatype List<T> = Nil | Cons(T, List)
+predicate InList<T>(x: T, xs: List<T>)
+predicate Subset(xs: List, ys: List) 
+{
+  forall x :: InList(x, xs) ==> InList(x, ys)
+}
+ghost method ListLemma_T(xs: List, ys: List)
+  requires forall x :: InList(x, xs) ==> InList(x, ys);
+{
+  assert Subset(xs, ys);
+}
+ghost method ammeLtsiL_T(xs: List, ys: List)
+  requires Subset(xs, ys);
+{
+  assert forall x :: InList(x, xs) ==> InList(x, ys);
+}
+ghost method ListLemma_int(xs: List<int>, ys: List<int>)
+  requires forall x :: InList(x, xs) ==> InList(x, ys);
+{
+  assert Subset(xs, ys);
+}
+ghost method ammeLtsiL_int(xs: List<int>, ys: List<int>)
+  requires Subset(xs, ys);
+{
+  assert forall x :: InList(x, xs) ==> InList(x, ys);
+}
+
+// -------------- auto filled-in type arguments for collection types ------
+
+function length(xs: List): nat
+{
+  match xs
+  case Nil => 0
+  case Cons(_, tail) => 1 + length(tail)
+}
+
+function elems(xs: List): set
+{
+  match xs
+  case Nil => {}
+  case Cons(x, tail) => {x} + elems(tail)
+}
+
+function Card(s: set): nat
+{
+  |s|
+}
+
+function Identity(s: set): set
+{
+  s
+}
+
+function MultisetToSet(m: multiset): set
+{
+  if |m| == 0 then {} else
+  var x :| x in m; MultisetToSet(m - multiset{x}) + {x}
+}
+
+function SeqToSet(q: seq): set
+{
+  if q == [] then {} else {q[0]} + SeqToSet(q[1..])
+}
+
+datatype Pair<T(==),U(==)> = MkPair(0: T, 1: U)
+
+method IdentityMap(s: set<Pair>) returns (m: map)
+{
+  m := map[];
+  var s := s;
+  while s != {}
+    decreases s;
+  {
+    var p :| p in s;
+    m, s := m[p.0 := p.1], s - {p};
+  }
+}
+
+// -------------- auto filled-in type arguments for array types ------
+
+module ArrayTypeMagic {
+  method M(a: array2)
+  {
+  }
+
+  method F(b: array) returns (s: seq)
+    requires b != null;
+  {
+    return b[..];
+  }
+
+  datatype ArrayCubeTree<T> = Leaf(array3) | Node(ArrayCubeTree, ArrayCubeTree)
+  datatype AnotherACT<T> = Leaf(array3) | Node(AnotherACT, AnotherACT)
+  datatype OneMoreACT<T,U> = Leaf(array3) | Node(OneMoreACT, OneMoreACT)
+
+  function G(t: ArrayCubeTree): array3
+  {
+    match t
+    case Leaf(d) => d
+    case Node(l, _) => G(l)
+  }
+
+  datatype Nat = Zero | Succ(Nat)
+
+  datatype List<T> = Nil | Cons(T, List)
+
+  datatype Cell<T> = Mk(T)
+  datatype DList<T,U> = Nil(Cell) | Cons(T, U, DList)
 }

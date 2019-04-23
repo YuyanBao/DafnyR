@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 /*
 Rustan Leino, 5 Oct 2011
 
@@ -88,7 +91,7 @@ class Tree {
 
   function method IsEmpty(): bool
     requires Valid();
-    reads Repr;
+    reads this, Repr;
     ensures IsEmpty() <==> Contents == [];
   {
     left == this
@@ -114,6 +117,11 @@ class Tree {
     Repr := lft.Repr + {this} + rgt.Repr;
   }
 
+  lemma exists_intro<T>(P: T -> bool, x: T)
+    requires P.requires(x)
+    requires P(x)
+    ensures exists y :: P.requires(y) && P(y) { }
+
   method ComputeMax() returns (mx: int)
     requires Valid() && !IsEmpty();
     ensures forall x :: x in Contents ==> x <= mx;
@@ -121,13 +129,17 @@ class Tree {
     decreases Repr;
   {
     mx := value;
+
     if (!left.IsEmpty()) {
       var m := left.ComputeMax();
       mx := if mx < m  then m else mx;
     }
+
     if (!right.IsEmpty()) {
       var m := right.ComputeMax();
       mx := if mx < m then m else mx;
     }
+
+    exists_intro(x reads this => x in Contents && x == mx, mx);
   }
 }

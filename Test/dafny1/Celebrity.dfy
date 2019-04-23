@@ -1,15 +1,18 @@
+// RUN: %dafny /compile:0 /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 // Celebrity example, inspired by the Rodin tutorial
 
-static function method Knows<Person>(a: Person, b: Person): bool
+function method Knows<X>(a: X, b: X): bool
   requires a != b;  // forbid asking about the reflexive case
 
-static function IsCelebrity<Person>(c: Person, people: set<Person>): bool
+function IsCelebrity<Y>(c: Y, people: set<Y>): bool
 {
   c in people &&
   (forall p :: p in people && p != c ==> Knows(p, c) && !Knows(c, p))
 }
 
-method FindCelebrity0<Person>(people: set<Person>, ghost c: Person) returns (r: Person)
+method FindCelebrity0<Z>(people: set<Z>, ghost c: Z) returns (r: Z)
   requires exists c :: IsCelebrity(c, people);
   ensures r == c;
 {
@@ -17,34 +20,34 @@ method FindCelebrity0<Person>(people: set<Person>, ghost c: Person) returns (r: 
   r := cc;
 }
 
-method FindCelebrity1<Person>(people: set<Person>, ghost c: Person) returns (r: Person)
+method FindCelebrity1<W>(people: set<W>, ghost c: W) returns (r: W)
   requires IsCelebrity(c, people);
   ensures r == c;
 {
   var Q := people;
-  var x := choose Q;
+  var x :| x in Q;
   while (Q != {x})
     //invariant Q <= people;  // inv1 in Rodin's Celebrity_1, but it's not needed here
     invariant IsCelebrity(c, Q);  // inv2
     invariant x in Q;
     decreases Q;
   {
-    var y := choose Q - {x};
+    var y :| y in Q - {x};
     if (Knows(x, y)) {
       Q := Q - {x};  // remove_1
     } else {
       Q := Q - {y};  assert x in Q;  // remove_2
     }
-    x := choose Q;
+    x :| x in Q;
   }
   r := x;
 }
 
-method FindCelebrity2<Person>(people: set<Person>, ghost c: Person) returns (r: Person)
+method FindCelebrity2<V>(people: set<V>, ghost c: V) returns (r: V)
   requires IsCelebrity(c, people);
   ensures r == c;
 {
-  var b := choose people;
+  var b :| b in people;
   var R := people - {b};
   while (R != {})
     invariant R <= people;  // inv1
@@ -54,7 +57,7 @@ method FindCelebrity2<Person>(people: set<Person>, ghost c: Person) returns (r: 
 
     decreases R;
   {
-    var x := choose R;
+    var x :| x in R;
     if (Knows(x, b)) {
       R := R - {x};
     } else {

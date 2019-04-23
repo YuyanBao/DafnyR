@@ -1,5 +1,8 @@
-// This file contains various tests of resolving quantifiers in ghost and non-ghost positions
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
 
+// This file contains various tests of resolving quantifiers in ghost and non-ghost positions
+module Misc {
 class MyClass<T> {
   // This function is in a ghost context, so all is cool.
   function GhostF(): bool
@@ -138,7 +141,7 @@ class MyClass<T> {
     }
   }
 }
-
+}
 // The following functions test what was once a soundness problem
 module DependencyOnAllAllocatedObjects {
   function AllObjects0(): bool
@@ -178,6 +181,12 @@ module DependencyOnAllAllocatedObjects {
     forall c: SomeClass :: true  // error: not allowed to dependend on which objects are allocated
   }
 
+  class SomeClass {
+    var f: int;
+  }
+}
+
+module DependencyOnAllAllocatedObjects_More {
   method M()
   {
     var b := forall c: SomeClass :: c != null ==> c.f == 0;  // error: non-ghost code requires bounds
@@ -189,3 +198,4 @@ module DependencyOnAllAllocatedObjects {
     var f: int;
   }
 }
+

@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 module A {
   class C {
     method M(y: int) returns (x: int)
@@ -28,7 +31,7 @@ module B refines A {
       modifies this;  // error: cannot add a modifies clause
       ensures 0 <= x;  // fine
 
-    predicate abc  // error: cannot replace a field with a predicate
+    predicate abc()  // error: cannot replace a field with a predicate
     var xyz: bool;  // error: ...or even with another field
 
     function F   // error: cannot replace a "function method" with a "function"
@@ -56,3 +59,51 @@ module BB refines B {
     { 10 }
   }
 }
+
+module Forall0 {
+  class C {
+    var a: int
+    method M()
+      modifies this
+    {
+    }
+    lemma Lemma(x: int)
+    {
+    }
+  }
+}
+module Forall1 refines Forall0 {
+  class C {
+    var b: int
+    method M...
+    {
+      forall x { Lemma(x); }  // allowed
+      var s := {4};
+      forall x | x in s ensures x == 4 { }  // allowed
+      forall x {  // allowed
+        calc {
+          x in s;
+        ==
+          x == 4;
+        }
+      }
+      forall c: C | c in {this} {
+        c.b := 17;  // allowed
+      }
+      forall c: C | c in {this} {
+        c.a := 17;  // error: not allowed to update previously defined field
+      }
+    }
+  }
+}
+
+protected module CannotRefine {
+  type T
+}
+
+module TryToRefine refines CannotRefine { // error
+  type T = int
+}
+
+// ------------- visibility checks -------------------------------
+

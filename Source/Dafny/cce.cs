@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Text;
@@ -23,10 +23,6 @@ public static class cce {
     return collection != null && NonNullElements(collection.Values);
   }
   [Pure]
-  public static bool NonNullElements(VariableSeq collection) {
-    return collection != null && Contract.ForAll(0, collection.Length, i => collection[i] != null);
-  }
-  [Pure]
   public static bool NonNullElements<T>(Microsoft.Dafny.Graph<T> collection) where T : class {
     return collection != null && cce.NonNullElements(collection.TopologicallySortedComponents());
   }
@@ -35,22 +31,6 @@ public static class cce {
   }
   [Pure]
   public static void EndExpose() {
-  }
-  [Pure]
-  public static bool IsPeerConsistent(object o) {
-    return true;
-  }
-  [Pure]
-  public static bool IsConsistent(object o) {
-    return true;
-  }
-  [Pure]
-  public static bool IsExposable(object o) {
-    return true;
-  }
-  [Pure]
-  public static bool IsExposed(object o) {
-    return true;
   }
   public static class Owner {
     [Pure]
@@ -77,10 +57,6 @@ public static class cce {
   public class UnreachableException : Exception {
     public UnreachableException() {
     }
-  }
-  [Pure]
-  public static bool IsValid(Microsoft.Dafny.Expression expression) {
-    return true;
   }
 }
 

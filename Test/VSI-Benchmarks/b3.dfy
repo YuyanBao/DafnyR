@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 // Note:  We used integers instead of a generic Comparable type, because
 // Dafny has no way of saying that the Comparable type's AtMost function
 // is total and transitive.
@@ -27,7 +30,7 @@ class Queue<T> {
     reads this;
   { contents[0] }
   function method Get(i: int): T
-    requires 0 <= i && i < |contents|;
+    requires 0 <= i < |contents|;
     reads this;
   { contents[i] }
 }
@@ -40,58 +43,30 @@ class Comparable {
 
 class Benchmark3 {
 
-  method Sort(q: Queue<int>) returns (r: Queue<int>, ghost perm: seq<int>)
+  method Sort(q: Queue<int>) returns (r: Queue<int>)
     requires q != null;
     modifies q;
     ensures r != null && fresh(r);
     ensures |r.contents| == |old(q.contents)|;
-    ensures (forall i, j :: 0 <= i && i < j && j < |r.contents| ==>
-                r.Get(i) <= r.Get(j));
-    //perm is a permutation
-    ensures |perm| == |r.contents|; // ==|pperm|
-    ensures (forall i :: 0 <= i && i < |perm|==> 0 <= perm[i] && perm[i] < |perm| );
-    ensures (forall i, j :: 0 <= i && i < j && j < |perm| ==> perm[i] != perm[j]); 
+    ensures forall i, j :: 0 <= i < j < |r.contents| ==> r.Get(i) <= r.Get(j);
     // the final Queue is a permutation of the input Queue
-    ensures (forall i :: 0 <= i && i < |perm| ==> r.contents[i] == old(q.contents)[perm[i]]);
+    ensures multiset(r.contents) == multiset(old(q.contents));
   {
     r := new Queue<int>.Init();
-    ghost var p := [];
-    
-    var n := 0;
-    while (n < |q.contents|)
-      invariant n <= |q.contents|;
-      invariant n == |p|;
-      invariant (forall i :: 0 <= i && i < n ==> p[i] == i);
-    {
-      p := p + [n];
-      n := n + 1;
-    }
-    perm := [];
-    ghost var pperm := p + perm;
-   
-    while (|q.contents| != 0)
-      invariant |r.contents| == |old(q.contents)| - |q.contents|;
-      invariant (forall i, j :: 0 <= i && i < j && j < |r.contents| ==>
-                    r.contents[i] <= r.contents[j]);
-      invariant (forall i, j ::
-                    0 <= i && i < |r.contents| &&
-                    0 <= j && j < |q.contents|
-                    ==> r.contents[i] <= q.contents[j]);
-                    
-      // pperm is a permutation
-      invariant pperm == p + perm && |p| == |q.contents| && |perm| == |r.contents|;
-      invariant (forall i :: 0 <= i && i < |perm| ==> 0 <= perm[i] && perm[i] < |pperm|);
-      invariant (forall i :: 0 <= i && i < |p| ==> 0 <= p[i] && p[i] < |pperm|);
-      invariant (forall i, j :: 0 <= i && i < j && j < |pperm| ==> pperm[i] != pperm[j]);
+    while |q.contents| != 0
+      invariant |r.contents| + |q.contents| == |old(q.contents)|;
+      invariant forall i, j :: 0 <= i < j < |r.contents| ==> r.contents[i] <= r.contents[j];
+      invariant forall i, j ::
+                    0 <= i < |r.contents| &&
+                    0 <= j < |q.contents|
+                    ==> r.contents[i] <= q.contents[j];
       // the current array is that permutation of the input array
-      invariant (forall i :: 0 <= i && i < |perm| ==> r.contents[i] == old(q.contents)[perm[i]]);
-      invariant (forall i :: 0 <= i && i < |p| ==> q.contents[i] == old(q.contents)[p[i]]);
-    {  
+      invariant multiset(r.contents + q.contents) == multiset(old(q.contents));
+    {
+      ghost var qc := q.contents;
       var m,k := RemoveMin(q);
-      perm := perm + [p[k]]; //adds index of min to perm
-      p := p[k+1..] + p[..k]; //remove index of min from p  
+      assert qc == qc[..k] + [m] + qc[k+1..];
       r.Enqueue(m);
-      pperm := pperm[k+1..|p|+1] + pperm[..k] + pperm[|p|+1..] + [pperm[k]];
     }
   }
   
@@ -100,37 +75,72 @@ class Benchmark3 {
     requires q != null && |q.contents| != 0;
     modifies q;
     ensures |old(q.contents)| == |q.contents| + 1;
-    ensures  0 <= k && k < |old(q.contents)| && old(q.contents[k]) == m;
-    ensures (forall i :: 0 <= i && i < |q.contents| ==> m <= q.contents[i]);
+    ensures 0 <= k < |old(q.contents)| && old(q.contents[k]) == m;
+    ensures forall i :: 0 <= i < |q.contents| ==> m <= q.contents[i];
     ensures q.contents == old(q.contents)[k+1..] + old(q.contents)[..k];  
   {
     var n := |q.contents|;
     k := 0;
     m := q.Head(); 
     var j := 0;
-   
-    while (j < n)
+    while j < n
       invariant j <= n;
+      invariant 0 <= k < n && old(q.contents)[k] == m;
       invariant q.contents == old(q.contents)[j..] + old(q.contents)[..j]; //i.e. rotated
-      invariant 0 <= k && k < |old(q.contents)| && old(q.contents)[k] == m;
-      invariant (forall i :: 0<= i && i < j ==> m <= old(q.contents)[i]); //m is min so far
+      invariant forall i :: 0 <= i < j ==> m <= old(q.contents)[i]; //m is min so far
     {
+      ghost var qc0 := q.contents;
       var x := q.Dequeue();
       q.Enqueue(x);
-      if (x < m) { k := j; m := x; }
-      j := j+1;
-    }
-    
-    j := 0;
-    while (j < k)
-      invariant j <= k;
-      invariant q.contents == old(q.contents)[j..] + old(q.contents)[..j]; 
-    {
-      var x := q.Dequeue();
-      q.Enqueue(x);
+      RotationLemma(old(q.contents), j, qc0, q.contents);
+      if x < m { k := j; m := x; }
       j := j+1;
     }
 
+    j := 0;
+    while j < k
+      invariant j <= k;
+      invariant q.contents == old(q.contents)[j..] + old(q.contents)[..j]; 
+    {
+      ghost var qc0 := q.contents;
+      var x := q.Dequeue();
+      q.Enqueue(x);
+      RotationLemma(old(q.contents), j, qc0, q.contents);
+      j := j+1;
+    }
+
+    assert j == k;  
+    assert q.contents == old(q.contents)[k..] + old(q.contents)[..k];
+    ghost var qq := q.contents;
     m := q.Dequeue();
+    assert m == qq[0];
+    assert [m] + q.contents == qq && q.contents == qq[1..];
+    assert |old(q.contents)| == |q.contents| + 1;
+
+    assert q.contents == old(q.contents)[k+1..] + old(q.contents)[..k];  
+  }
+
+  lemma RotationLemma(O: seq, j: nat, A: seq, C: seq)
+    requires j < |O|;
+    requires A == O[j..] + O[..j];
+    requires C == A[1..] + [O[j]];
+    ensures C == O[j+1..] + O[..j+1];
+  {
+    calc {
+      A;
+      O[j..] + O[..j];
+      O[j..j+1] + O[j+1..] + O[..j];
+      O[j..j+1] + (O[j+1..] + O[..j]);
+    }
+    calc {
+      C;
+      A[1..] + [A[0]];
+      { assert A[0] == O[j] && A[1..] == O[j+1..] + O[..j]; }
+      O[j+1..] + O[..j] + [O[j]];
+      { assert [O[j]] == O[j..j+1]; }
+      O[j+1..] + O[..j] + O[j..j+1];
+      O[j+1..] + (O[..j] + O[j..j+1]);
+      O[j+1..] + O[..j+1];
+    }
   }
 }

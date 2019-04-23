@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 class UnboundedStack<T> {
   var top: Node<T>;
   ghost var footprint: set<object>;
@@ -53,4 +56,43 @@ class Node<T> {
                         content == [val] + next.content &&
                         next.Valid())
   }
+}
+
+// ---------------------------------------------------------------------------------------
+// The following examples requires that quantifiers are boosted (that is, #2) when checked
+// versus not boosted (#1) when assumed.
+
+function F(x: nat): int
+{
+  if x == 0 then 0 else 1 + F(x-1)
+}
+
+method M(N: nat)
+{
+  var i := 0;
+  while (i < N)
+    invariant forall x {:induction false} :: 0 <= x <= i ==> F(x) == x;
+  {
+    i := i + 1;
+  }
+}
+
+// ----- orderings of checked vs. free  -----
+// The translation must always put checked things before free things.  In most situations,
+// this does not actually matter, but it does matter for loop invariants of loops that have
+// no backedges (that is, loops where Boogie's simple dead-code analysis figures prunes
+// away the backedges.
+
+predicate AnyPredicate(a: int, b: int) { a <= b }
+
+method NoLoop(N: nat)
+{
+  var i;
+  while i < N
+    invariant AnyPredicate(i, N);  // error: may not hold initially
+  {
+    i := i + 1;
+    break;  // this makes the loop not a loop
+  }
+  assert AnyPredicate(i, N);
 }

@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 module A {
   class X { }
   class T {
@@ -17,7 +20,7 @@ module A {
 
 module B refines A {
   class C { }
-  datatype Dt = Ax | Bx;
+  datatype Dt = Ax | Bx
   class T {
     method P() returns (p: int)
     {
@@ -35,30 +38,36 @@ module B refines A {
 // ------------------------------------------------
 
 module A_AnonymousClass {
-  var x: int;
-  method Increment(d: int)
-    modifies this;
-  {
-    x := x + d;
+  class XX {
+    var x: int;
+    method Increment(d: int)
+      modifies this;
+    {
+      x := x + d;
+    }
   }
 }
 
 module B_AnonymousClass refines A_AnonymousClass {
-  method Increment...
-    ensures x <= old(x) + d;
+  class XX {
+    method Increment...
+      ensures x <= old(x) + d;
+  }
 }
 
 module C_AnonymousClass refines B_AnonymousClass {
-  method Increment(d: int)
-    ensures old(x) + d <= x;
-  method Main()
-    modifies this;
-  {
-    x := 25;
-    Increment(30);
-    assert x == 55;
-    Increment(12);
-    assert x == 66;  // error: it's 67
+  class XX {
+    method Increment(d: int)
+      ensures old(x) + d <= x;
+    method Main()
+      modifies this;
+    {
+      x := 25;
+      Increment(30);
+      assert x == 55;
+      Increment(12);
+      assert x == 66;  // error: it's 67
+    }
   }
 }
 
@@ -101,7 +110,7 @@ module Abstract {
   class MyNumber {
     ghost var N: int;
     ghost var Repr: set<object>;
-    predicate Valid
+    protected predicate Valid()
       reads this, Repr;
     {
       this in Repr && null !in Repr
@@ -109,20 +118,20 @@ module Abstract {
     constructor Init()
       modifies this;
       ensures N == 0;
-      ensures Valid && fresh(Repr - {this});
+      ensures Valid() && fresh(Repr - {this});
     {
       N, Repr := 0, {this};
     }
     method Inc()
-      requires Valid;
+      requires Valid();
       modifies Repr;
       ensures N == old(N) + 1;
-      ensures Valid && fresh(Repr - old(Repr));
+      ensures Valid() && fresh(Repr - old(Repr));
     {
       N := N + 1;
     }
     method Get() returns (n: int)
-      requires Valid;
+      requires Valid();
       ensures n == N;
     {
       var k;  assume k == N;
@@ -135,7 +144,7 @@ module Concrete refines Abstract {
   class MyNumber {
     var a: int;
     var b: int;
-    predicate Valid
+    protected predicate Valid()
     {
       N == a - b
     }
@@ -156,7 +165,7 @@ module Concrete refines Abstract {
 }
 
 module Client {
-  import C = Concrete;
+  import C = Concrete
   class TheClient {
     method Main() {
       var n := new C.MyNumber.Init();
@@ -172,7 +181,7 @@ module IncorrectConcrete refines Abstract {
   class MyNumber {
     var a: int;
     var b: int;
-    predicate Valid
+    protected predicate Valid()
     {
       N == 2*a - b
     }
@@ -191,3 +200,5 @@ module IncorrectConcrete refines Abstract {
     }
   }
 }
+
+

@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 class A {
   // all of the following array types are allowed
   var a: array<int>;
@@ -7,7 +10,7 @@ class A {
   var e: array2 <A>;
   var f: array3 <A>;
   var g: array300 <A>;
-  var h: array3000 <array2<int>>;
+//  var h: array3000 <array2<int>>; // too big!
 
   method M0()
     requires a != null && b != null;

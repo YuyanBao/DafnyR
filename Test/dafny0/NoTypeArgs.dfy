@@ -1,4 +1,7 @@
-datatype List<T> = Nil | Cons(hd: T, tl: List);
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
+datatype List<T> = Nil | Cons(hd: T, tl: List)
 
 method M0() {
   var l: List;
@@ -70,13 +73,25 @@ ghost method Theorem(xs: List)
   }
 }
 
-ghost method Lemma(xs: List, ys: List)
+ghost method Lemma<A>(xs: List, ys: List)
   ensures reverse(concat(xs, ys)) == concat(reverse(ys), reverse(xs));
 {
   match (xs) {
     case Nil =>
-      assert forall ws :: concat(ws, Nil) == ws;
+      assert forall ws :: concat(ws, Nil) == var ws : List<A> := ws; ws;
     case Cons(t, rest) =>
-      assert forall a, b, c :: concat(a, concat(b, c)) == concat(concat(a, b), c);
+      assert forall a, b, c :: concat(a, concat(b, c)) == var ws : List <A> := concat(concat(a, b), c); ws;
   }
+}
+
+// ------ Here are some test cases where the inferred arguments will be a prefix of the given ones
+
+method DoAPrefix<A, B, C>(xs: List) returns (ys: List<A>)
+{
+  ys := xs;
+}
+
+function FDoAPrefix<A, B, C>(xs: List): List<A>
+{
+  xs
 }

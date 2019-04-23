@@ -1,12 +1,15 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 module A {
-  import B = Babble;
+  import B = Babble
   class X {
     function Fx(z: B.Z): int
       requires z != null;
       decreases 5, 4, 3;
     { z.G() }  // fine; this goes to a different module
   }
-  datatype Y = Cons(int, Y) | Empty;
+  datatype Y = Cons(int, Y) | Empty
 }
 
 class C {
@@ -16,7 +19,7 @@ class C {
 
 method MyMethod() { }
 
-var MyField: int;
+
 
 module Babble {
   class Z {
@@ -27,7 +30,7 @@ module Babble {
   }
 }
 
-static function MyFunction(): int { 5 }
+function MyFunction(): int { 5 }
 
 class D { }
 
@@ -63,7 +66,8 @@ method Botch1(x: int)
 
 module A_Visibility {
   class C {
-    static predicate P(x: int)
+    protected static predicate P(x: int)
+      ensures P(x) ==> -10 <= x;
     {
       0 <= x
     }
@@ -80,12 +84,12 @@ module A_Visibility {
 }
 
 module B_Visibility {
-  import A = A_Visibility;
+  import A = A_Visibility
   method Main() {
     var y;
     if (A.C.P(y)) {
-      assert 0 <= y;  // this much is known of C.P
-      assert 2 <= y;  // error
+      assert -10 <= y;  // this much is known of C.P
+      assert 0 <= y;  // error
     } else {
       assert A.C.P(8);  // error: C.P cannot be established outside the declaring module
     }
@@ -102,7 +106,7 @@ module Q_Imp {
 }
 
 module Q_M {
-  import Q = Q_Imp;
+  import Q = Q_Imp
   method MyMethod(root: Q.Node, S: set<Q.Node>)
     requires root in S;
   {
@@ -110,5 +114,22 @@ module Q_M {
     var j := new Q.Node;
     assert i != j;  // fine
     var q := new Q.Klassy.Init();
+  }
+}
+
+// ----- regression test -----------------------------------------
+
+abstract module Regression {
+  module A
+  {
+    predicate p<c,d>(m: map<c,d>)
+
+    lemma m<a,b>(m: map<a,b>)
+      ensures exists m {:nowarn} :: p(var m : map<a,b> := m; m) // WISH: Zeta-expanding the let binding would provide a good trigger
+  }
+
+  abstract module B
+  {
+    import X : A
   }
 }

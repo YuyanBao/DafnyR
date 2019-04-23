@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 class IntegerInduction {
   // This class considers different ways of proving, for any natural n:
   //   (SUM i in [0, n] :: i^3) == (SUM i in [0, n] :: i)^2
@@ -19,7 +22,7 @@ class IntegerInduction {
 
   // Here is one proof.  It uses a lemma, which is proved separately.
 
-  ghost method Theorem0(n: int)
+  lemma Theorem0(n: int)
     requires 0 <= n;
     ensures SumOfCubes(n) == Gauss(n) * Gauss(n);
   {
@@ -29,7 +32,7 @@ class IntegerInduction {
     }
   }
 
-  ghost method Lemma(n: int)
+  lemma Lemma(n: int)
     requires 0 <= n;
     ensures 2 * Gauss(n) == n*(n+1);
   {
@@ -39,7 +42,7 @@ class IntegerInduction {
   // Here is another proof.  It states the lemma as part of the theorem, and
   // thus proves the two together.
 
-  ghost method Theorem1(n: int)
+  lemma Theorem1(n: int)
     requires 0 <= n;
     ensures SumOfCubes(n) == Gauss(n) * Gauss(n);
     ensures 2 * Gauss(n) == n*(n+1);
@@ -49,24 +52,24 @@ class IntegerInduction {
     }
   }
 
-  ghost method DoItAllInOneGo()
-    ensures (forall n :: 0 <= n ==>
+  lemma DoItAllInOneGo()
+    ensures (forall n {:split false} :: 0 <= n ==> // WISH reenable quantifier splitting here. This will only work once we generate induction hypotheses at the Dafny level.
                 SumOfCubes(n) == Gauss(n) * Gauss(n) &&
                 2 * Gauss(n) == n*(n+1));
   {
   }
 
-  // The following two ghost methods are the same as the previous two, but
+  // The following two lemmas are the same as the previous two, but
   // here no body is given--and the proof still goes through (thanks to
   // Dafny's ghost-method induction tactic).
 
-  ghost method Lemma_Auto(n: int)
+  lemma Lemma_Auto(n: int)
     requires 0 <= n;
     ensures 2 * Gauss(n) == n*(n+1);
   {
   }
 
-  ghost method Theorem1_Auto(n: int)
+  lemma Theorem1_Auto(n: int)
     requires 0 <= n;
     ensures SumOfCubes(n) == Gauss(n) * Gauss(n);
     ensures 2 * Gauss(n) == n*(n+1);
@@ -76,7 +79,7 @@ class IntegerInduction {
   // Here is another proof.  It makes use of Dafny's induction heuristics to
   // prove the lemma.
 
-  ghost method Theorem2(n: int)
+  lemma Theorem2(n: int)
     requires 0 <= n;
     ensures SumOfCubes(n) == Gauss(n) * Gauss(n);
   {
@@ -87,7 +90,7 @@ class IntegerInduction {
     }
   }
 
-  ghost method M(n: int)
+  lemma M(n: int)
     requires 0 <= n;
   {
     assume (forall k :: 0 <= k && k < n ==> 2 * Gauss(k) == k*(k+1));  // manually assume the induction hypothesis
@@ -96,7 +99,7 @@ class IntegerInduction {
 
   // Another way to prove the lemma is to supply a postcondition on the Gauss function
 
-  ghost method Theorem3(n: int)
+  lemma Theorem3(n: int)
     requires 0 <= n;
     ensures SumOfCubes(n) == GaussWithPost(n) * GaussWithPost(n);
   {
@@ -114,14 +117,14 @@ class IntegerInduction {
 
   // Finally, with the postcondition of GaussWithPost, one can prove the entire theorem by induction
 
-  ghost method Theorem4()
+  lemma Theorem4()
     ensures (forall n :: 0 <= n ==>
         SumOfCubes(n) == GaussWithPost(n) * GaussWithPost(n));
   {
     // look ma, no hints!
   }
 
-  ghost method Theorem5(n: int)
+  lemma Theorem5(n: int)
     requires 0 <= n;
     ensures SumOfCubes(n) == GaussWithPost(n) * GaussWithPost(n);
   {
@@ -145,15 +148,15 @@ class IntegerInduction {
   // Proving the "<==" case is simple; it's the "==>" case that requires induction.
   // The example uses an attribute that requests induction on just "j".  However, the proof also
   // goes through by applying induction on both bound variables.
-  function method IsSorted(s: seq<int>): bool
-    ensures IsSorted(s) ==> (forall i,j {:induction j} :: 0 <= i && i < j && j < |s| ==> s[i] <= s[j]);
+  function method IsSorted(s: seq<int>): bool //WISH remove autotriggers false
+    ensures IsSorted(s) ==> (forall i,j {:induction j} {:autotriggers false} :: 0 <= i < j < |s| ==> s[i] <= s[j]);
     ensures (forall i,j :: 0 <= i && i < j && j < |s| ==> s[i] <= s[j]) ==> IsSorted(s);
   {
-    (forall i :: 1 <= i && i < |s| ==> s[i-1] <= s[i])
+    (forall i {:nowarn} :: 1 <= i && i < |s| ==> s[i-1] <= s[i])
   }
 }
 
-datatype Tree<T> = Leaf(T) | Branch(Tree<T>, Tree<T>);
+datatype Tree<T> = Leaf(T) | Branch(Tree<T>, Tree<T>)
 
 class DatatypeInduction<T> {
   function LeafCount<T>(tree: Tree<T>): int
@@ -189,7 +192,7 @@ class DatatypeInduction<T> {
 // This is a simple example where the induction hypothesis and the
 // case splits are decoupled.
 
-datatype D = Nothing | Something(D);
+datatype D = Nothing | Something(D)
 
 function FooD(n: nat, d: D): int
   ensures 10 <= FooD(n, d);

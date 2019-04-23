@@ -1,5 +1,8 @@
+// RUN: %dafny /compile:0 /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 module M0 {
-  datatype Kind = Constant | Ident | Binary;
+  datatype Kind = Constant | Ident | Binary
 
   class Expr {
     var kind: Kind;
@@ -9,7 +12,7 @@ module M0 {
 
     ghost var Repr: set<object>;
 
-    predicate Valid()
+    protected predicate Valid()
       reads this, Repr;
     {
       this in Repr && null !in Repr &&
@@ -55,7 +58,7 @@ module M1 refines M0 {
   class Expr {
     ghost var resolved: bool;
 
-    predicate Valid()
+    protected predicate Valid()
     {
       resolved ==>
         (kind == Binary ==> left.resolved && right.resolved)
@@ -101,7 +104,7 @@ module M2 refines M1 {
   class Expr {
     var decl: VarDecl;  // if kind==Ident, filled in during resolution
 
-    predicate Valid()
+    protected predicate Valid()
     {
       resolved ==>
         (kind == Ident ==> decl != null)

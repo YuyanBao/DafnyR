@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 class Termination {
   method A(N: int)
     requires 0 <= N;
@@ -97,7 +100,7 @@ class Termination {
   }
 }
 
-datatype List<T> = Nil | Cons(T, List<T>);
+datatype List<T> = Nil | Cons(T, List<T>)
 
 method FailureToProveTermination0(N: int)
 {
@@ -198,50 +201,51 @@ method DecreasesYieldsAnInvariant(z: int) {
 
 // ----------------------- top elements --------------------------------------
 
-var count: int;
+class TopElements {
+  var count: int;
 
-// Here is the old way that this had to be specified:
+  // Here is the old way that this had to be specified:
 
-method OuterOld(a: int)
-  modifies this;
-  decreases a, true;
-{
-  count := count + 1;
-  InnerOld(a, count);
-}
+  method OuterOld(a: int)
+    modifies this;
+    decreases a, true;
+  {
+    count := count + 1;
+    InnerOld(a, count);
+  }
 
-method InnerOld(a: int, b: int)
-  modifies this;
-  decreases a, false, b;
-{
-  count := count + 1;
-  if (b == 0 && 1 <= a) {
-    OuterOld(a - 1);
-  } else if (1 <= b) {
-    InnerOld(a, b - 1);
+  method InnerOld(a: int, b: int)
+    modifies this;
+    decreases a, false, b;
+  {
+    count := count + 1;
+    if (b == 0 && 1 <= a) {
+      OuterOld(a - 1);
+    } else if (1 <= b) {
+      InnerOld(a, b - 1);
+    }
+  }
+
+  // Now the default specifications ("decreases a;" and "decreases a, b;") suffice:
+
+  method Outer(a: int)
+    modifies this;
+  {
+    count := count + 1;
+    Inner(a, count);
+  }
+
+  method Inner(a: int, b: int)
+    modifies this;
+  {
+    count := count + 1;
+    if (b == 0 && 1 <= a) {
+      Outer(a - 1);
+    } else if (1 <= b) {
+      Inner(a, b - 1);
+    }
   }
 }
-
-// Now the default specifications ("decreases a;" and "decreases a, b;") suffice:
-
-method Outer(a: int)
-  modifies this;
-{
-  count := count + 1;
-  Inner(a, count);
-}
-
-method Inner(a: int, b: int)
-  modifies this;
-{
-  count := count + 1;
-  if (b == 0 && 1 <= a) {
-    Outer(a - 1);
-  } else if (1 <= b) {
-    Inner(a, b - 1);
-  }
-}
-
 // -------------------------- decrease either datatype value -----------------
 
 function Zipper0<T>(a: List<T>, b: List<T>): List<T>
@@ -272,6 +276,7 @@ function Zipper2<T>(a: List<T>, b: List<T>): List<T>
 
 method WhileStar0(n: int)
   requires 2 <= n;
+  decreases *;
 {
   var m := n;
   var k := 0;
@@ -329,3 +334,119 @@ ghost method Lemma_ReachBack()
   assert (forall m :: 0 <= m ==> ReachBack_Alt(m));
 }
 
+// ----------------- default decreases clause for functions ----------
+
+class DefaultDecreasesFunction {
+  var data: int;
+  ghost var Repr: set<object>;
+  var next: DefaultDecreasesFunction;
+  predicate Valid()
+    reads this, Repr;
+  {
+    this in Repr && null !in Repr &&
+    (next != null ==> next in Repr && next.Repr <= Repr && this !in next.Repr && next.Valid())
+  }
+  function F(x: int): int
+    requires Valid();
+    reads this, Repr;
+    // the default reads clause is: decreases Repr, x
+  {
+    if next == null || x < 0 then x else next.F(x + data)
+  }
+  function G(x: int): int
+    requires Valid();
+    reads this, Repr;
+    decreases x;
+  {
+    if next == null || x < 0 then x else next.G(x + data)  // error: failure to reduce 'decreases' measure
+  }
+  function H(x: int): int
+    requires Valid() && 0 <= x;
+    reads this, Repr;
+    // the default reads clause is: decreases Repr, x
+  {
+    if next != null then
+      next.H(Abs(data))  // this recursive call decreases Repr
+    else if x < 78 then
+      data + x
+    else
+      H(x - 1)  // this recursive call decreases x
+  }
+  function Abs(x: int): int
+  {
+    if x < 0 then -x else x
+  }
+}
+
+// ----------------- multisets and maps ----------
+
+module MultisetTests {
+  function F(a: multiset<int>, n: nat): int
+    decreases a, n;
+  {
+    if n == 0 then 0 else F(a, n-1)
+  }
+
+  function F'(a: multiset<int>, n: nat): int  // inferred decreases clause
+  {
+    if n == 0 then 0 else F'(a, n-1)
+  }
+
+  ghost method M(n: nat, b: multiset<int>)
+    ensures F(b, n) == 0;  // proved via automatic induction
+  {
+  }
+}
+
+module MapTests {
+  function F(a: map<int,int>, n: nat): int
+    decreases a, n;
+  {
+    if n == 0 then 0 else F(a, n-1)
+  }
+
+  function F'(a: map<int,int>, n: nat): int  // inferred decreases clause
+  {
+    if n == 0 then 0 else F'(a, n-1)
+  }
+
+  ghost method M(n: nat, b: map<int,int>)
+    ensures F(b, n) == 0;  // proved via automatic induction
+  {
+  }
+}
+
+// --------------------- The following regression test case relies on the previous rank
+// --------------------- really being evaluated in the initial state
+
+class C {
+  var v: nat;
+  method Terminate()
+    modifies this;
+    decreases v;
+  {
+    if (v != 0) {
+      v := v - 1;
+      Terminate();
+    }
+  }
+}
+
+// --------------------- decreases * tests
+
+module TerminationRefinement0 {
+  method M(x: int)
+    decreases *;
+  {
+    M(x);  // error [in TerminationRefinement1]: bad recursion
+           // Note, no complaint is issued in TerminationRefinement0, since
+           // the method is declared with 'decreases *'.
+  }
+}
+module TerminationRefinement1 refines TerminationRefinement0 {
+  method M...
+    decreases 4;  // this will cause termination checking to be done, and it will produce an error message for the recursive call
+  {
+    ...;
+  }
+}

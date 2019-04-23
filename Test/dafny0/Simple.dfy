@@ -1,3 +1,6 @@
+// RUN: %dafny /dprint:- /env:0 /noVerify "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 // My first Dafny program
 // Rustan Leino, 27 January 2008
 
@@ -22,8 +25,8 @@ class MyClass<T,U> {
       }
       t, u, v := M(true, lotsaObjects);
       var to: MyClass<T,U>;
-      to, u, v := this.M(true, lotsaObjects);
-      to, u, v := to.M(true, lotsaObjects);
+      t, u, v := this.M(true, lotsaObjects);
+      t, u, v := to.M(true, lotsaObjects);
       assert v[x] != null ==> null !in v[2..x][1..][5 := v[this.x]][..10];
     }
   }
@@ -39,14 +42,62 @@ class MyClass<T,U> {
 
 // some datatype stuff:
 
-datatype List<T> = Nil | Cons(T, List<T>);
+datatype List<T> = Nil | Cons(T, List<T>)
 
 datatype WildData =
   Something() |
   JustAboutAnything(bool, myName: set<int>, int, WildData) |
-  More(List<int>);
+  More(List<int>)
 
 class C {
   var w: WildData;
   var list: List<bool>;
+}
+
+lemma M(x: int)
+  ensures x < 8;
+{
+  // proof would go here
+}
+colemma M'(x': int)
+  ensures true;
+{
+}
+
+// modifiers on functions
+
+class CF {
+  static function F(): int
+  predicate method G()
+  copredicate Co()
+  protected function H(): int
+  static protected function method I(): real
+  protected static predicate method J()
+}
+
+// test printing of various if statements, including with omitted guards
+module A {
+  method P(x: int, y: int) {
+    if x==2 {
+    } else if * {
+    }
+    if x==10 {
+    }
+    if y==0 {
+    } else if y==1 {
+    } else if * {
+    } else if y==2 {
+    } else if (*) {
+    } else if y == 3 {
+    } else {
+    }
+  }
+}
+module B refines A {
+  method P... {
+    if ... {
+    } else if x==3 {
+    }
+    ...;
+  }
 }

@@ -1,8 +1,11 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 // -------- This is an example of what was once logically (although not trigger-ly) unsound ---
 
-datatype Wrapper<T> = Wrap(T);
-datatype Unit = It;
-datatype Color = Yellow | Blue;
+datatype Wrapper<T> = Wrap(T)
+datatype Unit = It
+datatype Color = Yellow | Blue
 
 function F(a: Wrapper<Unit>): bool
   ensures a == Wrapper.Wrap(Unit.It);
@@ -25,7 +28,7 @@ method BadLemma(c0: Color, c1: Color)
   var w1 := Wrapper.Wrap(c1);
 
   // Manually, add the following assertions in Boogie.  (These would
-  // be ill-typed in Dafny.)
+  // b93e ill-typed in Dafny.)
   //     assert _default.F($Heap, this, w#06);
   //     assert _default.F($Heap, this, w#17);
 
@@ -47,7 +50,7 @@ class MyClass {
   function H(): int { 5 }
 }
 
-datatype List =  Nil | Cons(MyClass, List);
+datatype List =  Nil | Cons(MyClass, List)
 
 method M(list: List, S: set<MyClass>) returns (ret: int)
   modifies S;
@@ -65,11 +68,12 @@ method M(list: List, S: set<MyClass>) returns (ret: int)
   }
   var k := N();
   assert k.H() == 5;
-  ghost var l := NF();
+  var st := new State;
+  ghost var l := st.NF();
   assert l != null ==> l.H() == 5;
 
-  parallel (s | s in S) ensures true; { assert s == null || s.H() == 5; }
-  parallel (s | s != null && s in S) {
+  forall s | s in S ensures true; { assert s == null || s.H() == 5; }
+  forall s | s != null && s in S {
     s.x := 0;
   }
 
@@ -87,11 +91,14 @@ method N() returns (k: MyClass)
 {
   k := new MyClass;
 }
-var a: MyClass;
-function NF(): MyClass reads this; { a }
+
+class State {
+  var a: MyClass;
+  function NF(): MyClass reads this; { a }
+}
 
 function TakesADatatype(a: List): int { 12 }
 
-datatype GenData<T> = Pair(T, T);
+datatype GenData<T> = Pair(T, T)
 
 function AlsoTakesADatatype<U>(p: GenData<U>): int { 17 }

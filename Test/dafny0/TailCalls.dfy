@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 method {:tailrecursion} A(q: int) returns (x: int, ghost y: bool, z: nat)
 {
   if (q < 10) {
@@ -27,25 +30,24 @@ method C(q: int) returns (x: int)
 }
 
 method D(q: int) returns (x: int)
-  decreases *;  // error: not allowed, because the method is not tail recursive
 {
   x := D(q-1);
   x := x + 1;
 }
 
-method E0(q: int) returns (x: int)
-  decreases *;  // error: not allowed, because the method is not tail recursive (since mutually recursive methods are currently not recognized as being tail recursive)
+method {:tailrecursion} E0(q: int) returns (x: int)  // error: not allowed, because the method is not
+  // tail recursive (since mutually recursive methods are currently not recognized as being tail recursive)
 {
   x := E1(q-1);
 }
-method E1(q: int) returns (x: int)
-  decreases *;  // error: not allowed, because the method is not tail recursive (since mutually recursive methods are currently not recognized as being tail recursive)
+method {:tailrecursion} E1(q: int) returns (x: int)  // error: not allowed, because the method is not
+  // tail recursive (since mutually recursive methods are currently not recognized as being tail recursive)
 {
   x := E0(q);
 }
 
 method F0(q: int) returns (x: int)
-  decreases *;  // fine, but no 'decreases' spec is needed at all here
+  decreases *;  // fine
 {
   x := D(q);
 }
@@ -60,15 +62,41 @@ method {:tailrecursion} G0(q: int) returns (x: int)
 {
   x := D(q);
 }
-method {:tailrecursion false} G1(q: int) returns (x: int)
-  decreases *;  // error: even though there is no recursion in this method's body, the annotation specifically says "not tail recursive", so (the easiest thing to do in the Resolver was to) generate an error
+method {:tailrecursion false} G1(q: int) returns (x: int)  // the annotation tells the compiler not to tail-call optimize
+  decreases *;
 {
-  x := D(q);
+  x := G1(q);
 }
 
 method H0(q: int) returns (x: int)
-  decreases *;  // fine, but no 'decreases' spec is needed at all here
+  decreases *;  // fine
 method {:tailrecursion} H1(q: int) returns (x: int)
-  decreases *;  // fine, but no 'decreases' spec is needed at all here
+  decreases *;  // fine
 method H2(q: int) returns (x: int)
-  decreases 5;  // fine, but no 'decreases' spec is needed at all here
+  decreases 5;  // fine
+
+class {:autocontracts} MyAutoContractClass {
+  var left: MyAutoContractClass;
+
+  predicate Valid() { true }
+
+  method {:tailrecursion} VisitLeft(val: int)
+  {
+    if left != null {
+      left.VisitLeft(val);  // this is a tail call, because what :autocontracts appends is ghost
+    }
+  }
+}
+
+method {:tailrecursion} OtherTailCall(n: int) {
+  ghost var x := 12;
+  if n > 0 {
+    OtherTailCall(n-1);  // tail call
+  }
+  x := 14;
+  { x := 13; }
+  ghost var h := 15;
+  if n < h*30 { } // this is a ghost statement as well
+  if n < 230 { } // and this can be (and is) considered ghost as well
+  if (*) { x := x + 1; }  // this, too
+}

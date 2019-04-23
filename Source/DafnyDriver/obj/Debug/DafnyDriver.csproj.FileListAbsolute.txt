@@ -1,6 +1,9 @@
-C:\Projects\Boogie\Binaries\Dafny.exe.config
-C:\Projects\Boogie\Binaries\Dafny.exe
-C:\Projects\Boogie\Binaries\Dafny.pdb
-C:\Projects\Boogie\Source\DafnyDriver\obj\Debug\ResolveAssemblyReference.cache
-C:\Projects\Boogie\Source\DafnyDriver\obj\Debug\Dafny.exe
-C:\Projects\Boogie\Source\DafnyDriver\obj\Debug\Dafny.pdb
+C:\Users\baoyu\Projects\dafny\Source\DafnyDriver\obj\Debug\DafnyDriver.csprojResolveAssemblyReference.cache
+C:\Users\baoyu\Projects\dafny\Binaries\CodeContracts\Dafny.noReferenceAssembly
+C:\Users\baoyu\Projects\dafny\Binaries\DafnyRuntime.cs
+C:\Users\baoyu\Projects\dafny\Binaries\Dafny.exe.config
+C:\Users\baoyu\Projects\dafny\Binaries\Dafny.exe
+C:\Users\baoyu\Projects\dafny\Binaries\Dafny.pdb
+C:\Users\baoyu\Projects\dafny\Source\DafnyDriver\obj\Debug\Dafny.rewritten
+C:\Users\baoyu\Projects\dafny\Source\DafnyDriver\obj\Debug\Dafny.exe
+C:\Users\baoyu\Projects\dafny\Source\DafnyDriver\obj\Debug\Dafny.pdb

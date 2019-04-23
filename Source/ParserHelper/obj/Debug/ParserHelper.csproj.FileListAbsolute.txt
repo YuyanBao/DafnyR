@@ -1,5 +1,0 @@
-C:\Projects\Boogie\Binaries\ParserHelper.dll
-C:\Projects\Boogie\Binaries\ParserHelper.pdb
-C:\Projects\Boogie\Source\ParserHelper\obj\Debug\ResolveAssemblyReference.cache
-C:\Projects\Boogie\Source\ParserHelper\obj\Debug\ParserHelper.dll
-C:\Projects\Boogie\Source\ParserHelper\obj\Debug\ParserHelper.pdb

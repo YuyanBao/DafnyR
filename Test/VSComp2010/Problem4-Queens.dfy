@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 // VSComp 2010, problem 4, N queens
 // Rustan Leino, 31 August 2010, updated 24 March 2011.
 //
@@ -34,7 +37,7 @@ method Search(N: int) returns (success: bool, board: seq<int>)
               |board| == N &&
               (forall p :: 0 <= p && p < N ==> IsConsistent(board, p));
   ensures !success ==>
-              (forall B ::
+              (forall B: seq<int> ::
                   |B| == N && (forall i :: 0 <= i && i < N ==> 0 <= B[i] && B[i] < N)
                   ==>
                   (exists p :: 0 <= p && p < N && !IsConsistent(B, p)));
@@ -44,7 +47,7 @@ method Search(N: int) returns (success: bool, board: seq<int>)
 
 // Given a board, this function says whether or not the queen placed in column 'pos'
 // is consistent with the queens placed in columns to its left.
-static function method IsConsistent(board: seq<int>, pos: int): bool
+function method IsConsistent(board: seq<int>, pos: int): bool
 {
   0 <= pos && pos < |board| &&
   (forall q :: 0 <= q && q < pos ==>
@@ -66,7 +69,7 @@ method SearchAux(N: int, boardSoFar: seq<int>) returns (success: bool, newBoard:
               |newBoard| == N &&
               (forall p :: 0 <= p && p < N ==> IsConsistent(newBoard, p));
   ensures !success ==>
-              (forall B ::
+              (forall B: seq<int> ::
                   |B| == N && (forall i :: 0 <= i && i < N ==> 0 <= B[i] && B[i] < N) &&
                   boardSoFar <= B
                   ==>
@@ -84,7 +87,7 @@ method SearchAux(N: int, boardSoFar: seq<int>) returns (success: bool, newBoard:
     var n := 0;
     while (n < N)
       invariant n <= N;
-      invariant (forall B ::
+      invariant (forall B: seq<int> ::
                   // For any board 'B' with 'N' queens, each placed in an existing row
                   |B| == N && (forall i :: 0 <= i && i < N ==> 0 <= B[i] && B[i] < N) &&
                   // ... where 'B' is an extension of 'boardSoFar'
@@ -122,7 +125,7 @@ method SearchAux(N: int, boardSoFar: seq<int>) returns (success: bool, newBoard:
       } else {
         // Since 'n' is not a consistent placement for a queen in column 'pos', there is also
         // no extension of 'candidateBoard' that would make the entire board consistent.
-        assert (forall B ::
+        assert (forall B: seq<int> ::
                   |B| == N && (forall i :: 0 <= i && i < N ==> 0 <= B[i] && B[i] < N) &&
                   candidateBoard <= B
                   ==>

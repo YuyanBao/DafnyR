@@ -1,7 +1,0 @@
-C:\Projects\Boogie\Source\Basetypes\bin\Release\Basetypes.dll
-C:\Projects\Boogie\Source\Basetypes\bin\Release\Basetypes.pdb
-C:\Projects\Boogie\Source\Basetypes\bin\Release\CodeContractsExtender.dll
-C:\Projects\Boogie\Source\Basetypes\bin\Release\CodeContractsExtender.pdb
-C:\Projects\Boogie\Source\Basetypes\obj\Release\ResolveAssemblyReference.cache
-C:\Projects\Boogie\Source\Basetypes\obj\Release\Basetypes.dll
-C:\Projects\Boogie\Source\Basetypes\obj\Release\Basetypes.pdb

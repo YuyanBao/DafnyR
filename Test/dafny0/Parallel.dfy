@@ -1,11 +1,14 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" /autoTriggers:0 "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 class C {
-  var data: int;
-  var n: nat;
-  var st: set<object>;
+  var data: int
+  var n: nat
+  var st: set<object>
 
   ghost method CLemma(k: int)
-    requires k != -23;
-    ensures data < k;  // magic, isn't it (or bogus, some would say)
+    requires k != -23
+    ensures data < k  // magic, isn't it (or bogus, some would say)
 }
 
 // This method more or less just tests the syntax, resolution, and basic verification
@@ -16,31 +19,31 @@ method ParallelStatement_Resolve(
     S: set<int>,
     clx: C, cly: C, clk: int
   )
-  requires a != null && null !in spine;
-  modifies a, spine;
+  requires a != null && null !in spine
+  modifies a, spine
 {
-  parallel (i: int | 0 <= i < a.Length && i % 2 == 0) {
+  forall i | 0 <= i < a.Length && i % 2 == 0 {
     a[i] := a[(i + 1) % a.Length] + 3;
   }
 
-  parallel (o | o in spine) {
+  forall o | o in spine {
     o.st := o.st + Repr;
   }
 
-  parallel (x, y | x in S && 0 <= y+x < 100) {
+  forall x, y | x in S && 0 <= y+x < 100 {
     Lemma(clx, x, y);  // error: precondition does not hold (clx may be null)
   }
 
-  parallel (x, y | x in S && 0 <= y+x < 100) {
+  forall x, y | x in S && 0 <= y+x < 100 {
     cly.CLemma(x + y);  // error: receiver might be null
   }
 
-  parallel (p | 0 <= p)
-    ensures F(p) <= Sum(p) + p - 1;  // error (no connection is known between F and Sum)
+  forall p | 0 <= p
+    ensures F(p) <= Sum(p) + p - 1  // error (no connection is known between F and Sum)
   {
     assert 0 <= G(p);
     ghost var t;
-    if (p % 2 == 0) {
+    if p % 2 == 0 {
       assert G(p) == F(p+2);  // error (there's nothing that gives any relation between F and G)
       t := p+p;
     } else {
@@ -53,11 +56,11 @@ method ParallelStatement_Resolve(
   }
 }
 
-ghost method Lemma(c: C, x: int, y: int)
-  requires c != null;
-  ensures c.data <= x+y;
-ghost method PowerLemma(x: int, y: int)
-  ensures Pred(x, y);
+lemma Lemma(c: C, x: int, y: int)
+  requires c != null
+  ensures c.data <= x+y
+lemma PowerLemma(x: int, y: int)
+  ensures Pred(x, y)
 
 function F(x: int): int
 function G(x: int): nat
@@ -68,54 +71,54 @@ function Pred(x: int, y: int): bool
 // ---------------------------------------------------------------------
 
 method M0(S: set<C>)
-  requires null !in S;
-  modifies S;
-  ensures forall o :: o in S ==> o.data == 85;
-  ensures forall o :: o != null && o !in S ==> o.data == old(o.data);
+  requires null !in S
+  modifies S
+  ensures forall o :: o in S ==> o.data == 85
+  ensures forall o :: o != null && o !in S && !fresh(o) ==> o.data == old(o.data)
 {
-  parallel (s | s in S) {
+  forall s | s in S {
     s.data := 85;
   }
 }
 
 method M1(S: set<C>, x: C)
-  requires null !in S && x in S;
+  requires null !in S && x in S
 {
-  parallel (s | s in S)
-    ensures s.data < 100;
+  forall s | s in S
+    ensures s.data < 100
   {
     assume s.data == 85;
   }
-  if (*) {
-    assert x.data == 85;  // error (cannot be inferred from parallel ensures clause)
+  if * {
+    assert x.data == 85;  // error (cannot be inferred from forall ensures clause)
   } else {
     assert x.data < 120;
   }
 
-  parallel (s | s in S)
-    ensures s.data < 70;  // error
+  forall s | s in S
+    ensures s.data < 70  // error
   {
     assume s.data == 85;
   }
 }
 
 method M2() returns (a: array<int>)
-  ensures a != null;
-  ensures forall i,j :: 0 <= i < a.Length/2 <= j < a.Length ==> a[i] < a[j];
+  ensures a != null
+  ensures forall i,j :: 0 <= i < a.Length/2 <= j < a.Length ==> a[i] < a[j]
 {
   a := new int[250];
-  parallel (i: nat | i < 125) {
+  forall i: nat | i < 125 {
     a[i] := 423;
   }
-  parallel (i | 125 <= i < 250) {
+  forall i | 125 <= i < 250 {
     a[i] := 300 + i;
   }
 }
 
 method M4(S: set<C>, k: int)
-  modifies S;
+  modifies S
 {
-  parallel (s | s in S && s != null) {
+  forall s | s in S && s != null {
     s.n := k;  // error: k might be negative
   }
 }
@@ -124,25 +127,25 @@ method M5()
 {
   if {
   case true =>
-    parallel (x | 0 <= x < 100) {
+    forall x | 0 <= x < 100 {
       PowerLemma(x, x);
     }
     assert Pred(34, 34);
 
   case true =>
-    parallel (x,y | 0 <= x < 100 && y == x+1) {
+    forall x,y | 0 <= x < 100 && y == x+1 {
       PowerLemma(x, y);
     }
     assert Pred(34, 35);
 
   case true =>
-    parallel (x,y | 0 <= x < y < 100) {
+    forall x,y | 0 <= x < y < 100 {
       PowerLemma(x, y);
     }
     assert Pred(34, 35);
 
   case true =>
-    parallel (x | x in set k | 0 <= k < 100) {
+    forall x | x in set k | 0 <= k < 100 {
       PowerLemma(x, x);
     }
     assert Pred(34, 34);
@@ -152,22 +155,22 @@ method M5()
 method Main()
 {
   var a := new int[180];
-  parallel (i | 0 <= i < 180) {
+  forall i | 0 <= i < 180 {
     a[i] := 2*i + 100;
   }
   var sq := [0, 0, 0, 2, 2, 2, 5, 5, 5];
-  parallel (i | 0 <= i < |sq|) {
+  forall i | 0 <= i < |sq| {
     a[20+i] := sq[i];
   }
-  parallel (t | t in sq) {
+  forall t | t in sq {
     a[t] := 1000;
   }
-  parallel (t,u | t in sq && t < 4 && 10 <= u < 10+t) {
+  forall t,u | t in sq && t < 4 && 10 <= u < 10+t {
     a[u] := 6000 + t;
   }
   var k := 0;
-  while (k < 180) {
-    if (k != 0) { print ", "; }
+  while k < 180 {
+    if k != 0 { print ", "; }
     print a[k];
     k := k + 1;
   }
@@ -177,62 +180,50 @@ method Main()
 method DuplicateUpdate() {
   var a := new int[180];
   var sq := [0, 0, 0, 2, 2, 2, 5, 5, 5];
-  if (*) {
-    parallel (t,u | t in sq && 10 <= u < 10+t) {
+  if * {
+    forall t,u | t in sq && 10 <= u < 10+t {
       a[u] := 6000 + t;  // error: a[10] (and a[11]) are assigned more than once
     }
   } else {
-    parallel (t,u | t in sq && t < 4 && 10 <= u < 10+t) {
+    forall t,u | t in sq && t < 4 && 10 <= u < 10+t {
       a[u] := 6000 + t;  // with the 't < 4' conjunct in the line above, this is fine
     }
   }
 }
 
-ghost method DontDoMuch(x: int)
+lemma DontDoMuch(x: int)
 {
 }
 
 method OmittedRange() {
-  parallel (x) { }
-  parallel (x) {
+  forall x: int { }  // a type is still needed for the bound variable
+  forall x {
     DontDoMuch(x);
   }
 }
 
 // ----------------------- two-state postconditions ---------------------------------
 
-class TwoState_C { ghost var data: int; }
+class TwoState_C { ghost var data: int }
 
-ghost static method TwoState0(y: int)
-  ensures exists o: TwoState_C :: o != null && fresh(o);
-{
-  var p := new TwoState_C;
-}
+// It is not possible to achieve this postcondition in a ghost method, because ghost
+// contexts are not allowed to allocate state.  Callers of this ghost method will know
+// that the postcondition is tantamount to 'false'.
+ghost method TwoState0(y: int)
+  ensures exists o: TwoState_C {:nowarn} :: o != null && fresh(o)
 
 method TwoState_Main0() {
-  parallel (x) { TwoState0(x); }
-  assert false;  // error: this location is indeed reachable (if the translation before it is sound)
-}
-
-ghost static method TwoState1(y: int)
-  ensures exists c: TwoState_C :: c != null && c.data != old(c.data);
-{
-  var c := new TwoState_C;
-  c.data := c.data + 1;
-}
-
-method TwoState_Main1() {
-  parallel (x) { TwoState1(x); }
-  assert false;  // error: this location is indeed reachable (if the translation before it is sound)
+  forall x { TwoState0(x); }
+  assert false;  // no prob, because the postcondition of TwoState0 implies false
 }
 
 method X_Legit(c: TwoState_C)
-  requires c != null;
-  modifies c;
+  requires c != null
+  modifies c
 {
   c.data := c.data + 1;
-  parallel (x | c.data <= x)
-    ensures old(c.data) < x;  // note that the 'old' refers to the method's initial state
+  forall x | c.data <= x
+    ensures old(c.data) < x  // note that the 'old' refers to the method's initial state
   {
   }
 }
@@ -241,68 +232,116 @@ method X_Legit(c: TwoState_C)
 // ensures clause.
 // However, there's an important difference in the translation, which is that the
 // occurrence of 'fresh' here refers to the initial state of the TwoStateMain2
-// method, not the beginning of the 'parallel' statement.
-// Still, care needs to be taken in the translation to make sure that the parallel
-// statement's effect on the heap is not optimized away.
+// method, not the beginning of the 'forall' statement.
 method TwoState_Main2()
 {
-  parallel (x: int)
-    ensures exists o: TwoState_C :: o != null && fresh(o);
+  forall x: int
+    ensures exists o: TwoState_C {:nowarn} :: o != null && fresh(o)
   {
     TwoState0(x);
   }
-  assert false;  // error: this location is indeed reachable (if the translation before it is sound)
+  assert false;  // fine, for the postcondition of the forall statement implies false
 }
 
 // At first glance, this looks like an inlined version of TwoState_Main0 above.
 // However, there's an important difference in the translation, which is that the
-// occurrence of 'fresh' here refers to the initial state of the TwoStateMain3
-// method, not the beginning of the 'parallel' statement.
-// Still, care needs to be taken in the translation to make sure that the parallel
+// occurrence of 'fresh' here refers to the initial state of the TwoState_Main3
+// method, not the beginning of the 'forall' statement.
+// Still, care needs to be taken in the translation to make sure that the forall
 // statement's effect on the heap is not optimized away.
 method TwoState_Main3()
 {
-  parallel (x: int)
-    ensures exists o: TwoState_C :: o != null && fresh(o);
+  forall x: int
+    ensures exists o: TwoState_C {:nowarn} :: o != null && fresh(o)
   {
-    var p := new TwoState_C;
+    assume false;  // (there's no other way to achieve this forall-statement postcondition)
   }
-  assert false;  // error: this location is indeed reachable (if the translation before it is sound)
+  assert false;  // it is known that the forall's postcondition is contradictory, so this assert is fine
 }
 
-// ------- empty parallel statement -----------------------------------------
+// ------- empty forall statement -----------------------------------------
 
-var emptyPar: int;
+class EmptyForallStatement {
+  var emptyPar: int
 
-method Empty_Parallel0()
-  modifies this;
-  ensures emptyPar == 8;
-{
-  parallel () {
-    this.emptyPar := 8;
-  }
-}
-
-function EmptyPar_P(x: int): bool
-ghost method EmptyPar_Lemma(x: int)
-  ensures EmptyPar_P(x);
-
-method Empty_Parallel1()
-  ensures EmptyPar_P(8);
-{
-  parallel () {
-    EmptyPar_Lemma(8);
-  }
-}
-
-method Empty_Parallel2()
-{
-  parallel ()
-    ensures exists k :: EmptyPar_P(k);
+  method Empty_Parallel0()
+    modifies this
+    ensures emptyPar == 8
   {
-    var y := 8;
-    assume EmptyPar_P(y);
+    forall () {
+      this.emptyPar := 8;
+    }
   }
-  assert exists k :: EmptyPar_P(k);  // yes
-  assert EmptyPar_P(8);  // error: the parallel statement's ensures clause does not promise this
+
+  function EmptyPar_P(x: int): bool
+  lemma EmptyPar_Lemma(x: int)
+    ensures EmptyPar_P(x)
+
+  method Empty_Parallel1()
+    ensures EmptyPar_P(8)
+  {
+    forall {
+      EmptyPar_Lemma(8);
+    }
+  }
+
+  method Empty_Parallel2()
+  {
+    forall
+      ensures exists k :: EmptyPar_P(k)
+    {
+      var y := 8;
+      assume EmptyPar_P(y);
+    }
+    assert exists k :: EmptyPar_P(k);  // yes
+    assert EmptyPar_P(8);  // error: the forall statement's ensures clause does not promise this
+  }
+}
+
+// ---------------------------------------------------------------------
+// The following is an example that once didn't verify (because the forall statement that
+// induction inserts had caused the $Heap to be advanced, despite the fact that Th is a
+// ghost method).
+
+datatype Nat = Zero | Succ(tail: Nat)
+
+predicate ThProperty(step: nat, t: Nat, r: nat)
+{
+  match t
+  case Zero => true
+  case Succ(o) => step>0 && exists ro:nat, ss | ss == step-1 :: ThProperty(ss, o, ro) //WISH: ss should be autogrnerated. Note that step is not a bound variable.
+}
+
+lemma Th(step: nat, t: Nat, r: nat)
+  requires t.Succ? && ThProperty(step, t, r)
+  // the next line follows from the precondition and the definition of ThProperty
+  ensures exists ro:nat, ss | ss == step-1 :: ThProperty(ss, t.tail, ro) //WISH same as above
+{
+}
+
+// ------------------------------------------------------------------------
+// The following example once included a unsoundness bug in the translation
+    
+method BogosityClient()
+  ensures false
+{
+  var c := new C;
+  c.data := 3;
+  Bogus(c);
+}
+
+predicate False(x: int) { false }
+
+method Bogus(c: C)
+  requires c != null && c.data == 3
+  modifies c
+  ensures false
+{
+  c.data := 4;
+  forall x | old(c.data) == 4
+    ensures False(x)
+  {
+    // easily provable, because the range of x is empty
+  }
+  assert False(10);  // error: does not follow from the "forall" statement
 }

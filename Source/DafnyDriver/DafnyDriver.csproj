@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Dafny</RootNamespace>
     <AssemblyName>Dafny</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <CodeContractsAssemblyMode>0</CodeContractsAssemblyMode>
     <SignAssembly>true</SignAssembly>
@@ -20,7 +20,8 @@
     <OldToolsVersion>3.5</OldToolsVersion>
     <UpgradeBackupLocation />
     <IsWebBootstrapper>false</IsWebBootstrapper>
-    <TargetFrameworkProfile />
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
     <PublishUrl>publish\</PublishUrl>
     <Install>true</Install>
     <InstallFrom>Disk</InstallFrom>
@@ -71,23 +72,24 @@
     </CodeContractsExtraAnalysisOptions>
     <CodeContractsBaseLineFile>
     </CodeContractsBaseLineFile>
-    <CodeContractsRuntimeCheckingLevel>Full</CodeContractsRuntimeCheckingLevel>
-    <CodeContractsReferenceAssembly>Build</CodeContractsReferenceAssembly>
+    <CodeContractsRuntimeCheckingLevel>None</CodeContractsRuntimeCheckingLevel>
+    <CodeContractsReferenceAssembly>DoNotBuild</CodeContractsReferenceAssembly>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <CodeContractsRuntimeSkipQuantifiers>False</CodeContractsRuntimeSkipQuantifiers>
     <CodeContractsEnumObligations>False</CodeContractsEnumObligations>
     <CodeContractsCacheAnalysisResults>False</CodeContractsCacheAnalysisResults>
     <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
-    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <OutputPath>..\..\Binaries\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Checked|AnyCPU'">
     <DebugSymbols>true</DebugSymbols>
@@ -123,23 +125,30 @@
     <CodeContractsRuntimeCheckingLevel>Full</CodeContractsRuntimeCheckingLevel>
     <CodeContractsReferenceAssembly>Build</CodeContractsReferenceAssembly>
     <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="AbsInt">
-      <HintPath>..\..\Binaries\AbsInt.dll</HintPath>
+    <Reference Include="BoogieAbsInt">
+      <HintPath>..\..\..\boogie\Binaries\BoogieAbsInt.dll</HintPath>
     </Reference>
-    <Reference Include="Core">
-      <HintPath>..\..\Binaries\Core.dll</HintPath>
+    <Reference Include="BoogieConcurrency">
+      <HintPath>..\..\..\boogie\Binaries\BoogieConcurrency.dll</HintPath>
     </Reference>
-    <Reference Include="ParserHelper, Version=2.2.30705.1126, Culture=neutral, PublicKeyToken=736440c9b414ea16, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Binaries\ParserHelper.dll</HintPath>
+    <Reference Include="BoogieCore">
+      <HintPath>..\..\..\boogie\Binaries\BoogieCore.dll</HintPath>
+    </Reference>
+    <Reference Include="BoogieExecutionEngine">
+      <HintPath>..\..\..\boogie\Binaries\BoogieExecutionEngine.dll</HintPath>
+    </Reference>
+    <Reference Include="BoogieParserHelper">
+      <HintPath>..\..\..\boogie\Binaries\BoogieParserHelper.dll</HintPath>
+    </Reference>
+    <Reference Include="Provers.SMTLib">
+      <HintPath>..\..\..\boogie\Binaries\Provers.SMTLib.dll</HintPath>
     </Reference>
     <Reference Include="System" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
-    <Reference Include="VCGeneration">
-      <HintPath>..\..\Binaries\VCGeneration.dll</HintPath>
+    <Reference Include="BoogieVCGeneration">
+      <HintPath>..\..\..\boogie\Binaries\BoogieVCGeneration.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
@@ -147,6 +156,10 @@
     <Compile Include="..\version.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DafnyRuntime\DafnyRuntime.csproj">
+      <Project>{3e2944e9-3e1d-4e03-a881-fb04a7a6ed67}</Project>
+      <Name>DafnyRuntime</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Dafny\DafnyPipeline.csproj">
       <Project>{FE44674A-1633-4917-99F4-57635E6FA740}</Project>
       <Name>DafnyPipeline</Name>

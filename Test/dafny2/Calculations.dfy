@@ -1,7 +1,10 @@
+// RUN: %dafny /compile:0 /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 /* Lists */
 // Here are some standard definitions of List and functions on Lists
 
-datatype List<T> = Nil | Cons(T, List);
+datatype List<T> = Nil | Cons(T, List)
 
 function length(l: List): nat
 {
@@ -38,13 +41,13 @@ function qreverse(l: List): List
 
 // Here are two lemmas about the List functions.
 
-ghost method Lemma_ConcatNil()
-  ensures forall xs :: concat(xs, Nil) == xs;
+lemma Lemma_ConcatNil(xs : List)
+  ensures concat(xs, Nil) == xs;
 {
 }
 
-ghost method Lemma_RevCatCommute()
-  ensures forall xs, ys, zs :: revacc(xs, concat(ys, zs)) == concat(revacc(xs, ys), zs);
+lemma Lemma_RevCatCommute(xs : List)
+  ensures forall ys, zs :: revacc(xs, concat(ys, zs)) == concat(revacc(xs, ys), zs);
 {
 }
 
@@ -52,7 +55,7 @@ ghost method Lemma_RevCatCommute()
 // is given in a calculational style.  The proof is not minimal--some lines can be omitted
 // and Dafny will still fill in the details.
 
-ghost method Theorem_QReverseIsCorrect_Calc(l: List)
+lemma Theorem_QReverseIsCorrect_Calc(l: List)
   ensures qreverse(l) == reverse(l);
 {
   calc {
@@ -61,12 +64,12 @@ ghost method Theorem_QReverseIsCorrect_Calc(l: List)
     revacc(l, Nil);
     { Lemma_Revacc_calc(l, Nil); }
     concat(reverse(l), Nil);
-    { Lemma_ConcatNil(); }
+    { Lemma_ConcatNil(reverse(l)); }
     reverse(l);
   }
 }
 
-ghost method Lemma_Revacc_calc(xs: List, ys: List)
+lemma Lemma_Revacc_calc(xs: List, ys: List)
   ensures revacc(xs, ys) == concat(reverse(xs), ys);
 {
   match (xs) {
@@ -78,9 +81,9 @@ ghost method Lemma_Revacc_calc(xs: List, ys: List)
         concat(concat(reverse(xrest), Cons(x, Nil)), ys);
         // induction hypothesis: Lemma_Revacc_calc(xrest, Cons(x, Nil))
         concat(revacc(xrest, Cons(x, Nil)), ys);
-        { Lemma_RevCatCommute(); } // forall xs,ys,zs :: revacc(xs, concat(ys, zs)) == concat(revacc(xs, ys), zs)
+        { Lemma_RevCatCommute(xrest); } // forall xs,ys,zs :: revacc(xs, concat(ys, zs)) == concat(revacc(xs, ys), zs)
         revacc(xrest, concat(Cons(x, Nil), ys));
-		// def. concat (x2)
+        // def. concat (x2)
         revacc(xrest, Cons(x, ys));
         // def. revacc
         revacc(xs, ys);
@@ -90,7 +93,7 @@ ghost method Lemma_Revacc_calc(xs: List, ys: List)
 
 // Here is a version of the same proof, as it was constructed before Dafny's "calc" construct.
 
-ghost method Theorem_QReverseIsCorrect(l: List)
+lemma Theorem_QReverseIsCorrect(l: List)
   ensures qreverse(l) == reverse(l);
 {
   assert qreverse(l)
@@ -99,10 +102,10 @@ ghost method Theorem_QReverseIsCorrect(l: List)
   Lemma_Revacc(l, Nil);
   assert revacc(l, Nil)
       == concat(reverse(l), Nil);
-  Lemma_ConcatNil();
+  Lemma_ConcatNil(reverse(l));
 }
 
-ghost method Lemma_Revacc(xs: List, ys: List)
+lemma Lemma_Revacc(xs: List, ys: List)
   ensures revacc(xs, ys) == concat(reverse(xs), ys);
 {
   match (xs) {
@@ -115,13 +118,13 @@ ghost method Lemma_Revacc(xs: List, ys: List)
       assert concat(reverse(xs), ys)
           == // def. reverse
               concat(concat(reverse(xrest), Cons(x, Nil)), ys)
-          == // induction hypothesis:  Lemma3a(xrest, Cons(x, Nil))
+          == // induction hypothesis:  Lemma_Revacc(xrest, Cons(x, Nil))
               concat(revacc(xrest, Cons(x, Nil)), ys);
-          Lemma_RevCatCommute();  // forall xs,ys,zs :: revacc(xs, concat(ys, zs)) == concat(revacc(xs, ys), zs)
+          Lemma_RevCatCommute(xrest);  // forall xs,ys,zs :: revacc(xs, concat(ys, zs)) == concat(revacc(xs, ys), zs)
       assert concat(revacc(xrest, Cons(x, Nil)), ys)
           == revacc(xrest, concat(Cons(x, Nil), ys));
 
-      assert forall g, gs :: concat(Cons(g, Nil), gs) == Cons(g, gs);
+      assert forall g: _T0, gs :: concat(Cons(g, Nil), gs) == Cons(g, gs);
 
       assert revacc(xrest, concat(Cons(x, Nil), ys))
           == // the assert lemma just above
@@ -137,30 +140,31 @@ function Fib(n: nat): nat
   if n < 2 then n else Fib(n - 2) + Fib(n - 1)
 }
 
-ghost method Lemma_Fib()
+lemma Lemma_Fib()
   ensures Fib(5) < 6;
 {
   calc {
     Fib(5);
     Fib(4) + Fib(3);
+  <
     calc {
       Fib(2);
       Fib(0) + Fib(1);
       0 + 1;
       1;
     }
-    < 6;
+    6;
   }
 }
 
 /* List length */
 // Here are some proofs that show the use of nested calculations.
 
-ghost method Lemma_Concat_Length(xs: List, ys: List)
+lemma Lemma_Concat_Length(xs: List, ys: List)
   ensures length(concat(xs, ys)) == length(xs) + length(ys);
 {}
 
-ghost method Lemma_Reverse_Length(xs: List)
+lemma Lemma_Reverse_Length(xs: List)
   ensures length(xs) == length(reverse(xs));
 {
   match (xs) {
@@ -177,7 +181,7 @@ ghost method Lemma_Reverse_Length(xs: List)
         calc {
           length(Cons(x, Nil));
           // def. length
-          1 + length(Nil);
+          // 1 + length(Nil);  // ambigious type parameter
           // def. length
           1 + 0;
           1;
@@ -189,7 +193,7 @@ ghost method Lemma_Reverse_Length(xs: List)
   }
 }
 
-ghost method Window(xs: List, ys: List)
+lemma Window(xs: List, ys: List)
   ensures length(xs) == length(ys) ==> length(reverse(xs)) == length(reverse(ys));
 {
   calc {
@@ -207,3 +211,66 @@ ghost method Window(xs: List, ys: List)
     true;
   }
 }
+
+// In the following we use a combination of calc and forall
+
+function ith<a>(xs: List, i: nat): a
+  requires i < length(xs);
+{
+  match xs
+  case Cons(x, xrest) => if i == 0 then x else ith(xrest, i - 1)
+}
+
+lemma lemma_zero_length(xs: List)
+  ensures length(xs) == 0 <==> xs.Nil?;
+{}
+
+lemma lemma_extensionality(xs: List, ys: List)
+  requires length(xs) == length(ys); // (0)
+  requires forall i: nat | i < length(xs) :: ith(xs, i) == ith(ys, i); // (1)
+  ensures xs == ys;
+{
+  match xs {
+    case Nil =>
+      calc {
+        true;
+        // (0)
+        length(xs) == length(ys);
+        0 == length(ys);
+        { lemma_zero_length(ys); }
+        Nil == ys;
+        xs == ys;
+      }
+    case Cons(x, xrest) =>
+      match ys {
+        case Cons(y, yrest) =>
+          calc {
+            xs;
+            Cons(x, xrest);
+            calc {
+              x;
+              ith(xs, 0);
+              // (1) with i = 0
+              ith(ys, 0);
+              y;
+            }
+            Cons(y, xrest);
+            {
+              forall (j: nat | j < length(xrest)) {
+                calc {
+                  ith(xrest, j);
+                  ith(xs, j + 1);
+                  // (1) with i = j + 1
+                  ith(ys, j + 1);
+                  ith(yrest, j);
+                }
+              }
+              lemma_extensionality(xrest, yrest);
+            }
+            Cons(y, yrest);
+            ys;
+          }
+      }
+  }
+}
+

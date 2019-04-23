@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 // ----------------- wellformed specifications ----------------------
 
 class SoWellformed {
@@ -39,7 +42,7 @@ class SoWellformed {
   }
 
   method O(a: SoWellformed, b: int) returns (c: bool, d: SoWellformed)
-    modifies a.next;  // this may not be well-defined, but that's okay for modifies clauses
+    modifies a.next;  // error: this is not well-defined if a == null (but it's okay to have a.next==null)
   {
     c := true;
   }
@@ -56,7 +59,7 @@ class SoWellformed {
     modifies s;
     ensures next.xyz < 100;  // error: may not be well-defined (if this in s and body sets next to null)
   {
-  
+
   }
   method R(a: SoWellformed, s: set<SoWellformed>) returns (c: bool, d: SoWellformed)
     requires next != null && this !in s;
@@ -74,7 +77,7 @@ class StatementTwoShoes {
   var s: StatementTwoShoes;
   function method F(b: int): StatementTwoShoes
     requires 0 <= b;
-	reads this;
+    reads this;
   {
     s
   }
@@ -217,14 +220,14 @@ function Postie1(c: Mountain): Mountain
 }
 
 function Postie2(c: Mountain): Mountain
-  requires c != null && c.x == 5;
+  requires c != null && c.x == 5; reads c;
   ensures Postie2(c).x == 5;  // error: well-formedness error (null dereference)
 {
   c
 }
 
 function Postie3(c: Mountain): Mountain  // all is cool
-  requires c != null && c.x == 5;
+  requires c != null && c.x == 5; reads c;
   ensures Postie3(c) != null && Postie3(c).x < 10;
   ensures Postie3(c).x == 5;
 {
@@ -232,7 +235,7 @@ function Postie3(c: Mountain): Mountain  // all is cool
 }
 
 function Postie4(c: Mountain): Mountain
-  requires c != null && c.x <= 5;
+  requires c != null && c.x <= 5; reads c;
   ensures Postie4(c) != null && Postie4(c).x < 10;
   ensures Postie4(c).x == 5;  // error: postcondition might not hold
 {

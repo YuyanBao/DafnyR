@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 // Problem 2 concerns an interpreter for the language of S and K combinators.
 
 // -----------------------------------------------------------------------------
@@ -8,7 +11,7 @@
 // definition, "car" and "cdr" are declared to be destructors for terms
 // constructed by Apply.
 
-datatype Term = S | K | Apply(car: Term, cdr: Term);
+datatype Term = S | K | Apply(car: Term, cdr: Term)
 
 // The problem defines values to be a subset of the terms.  More precisely,
 // a Value is a Term that fits the following grammar:
@@ -37,7 +40,7 @@ function method IsValue(t: Term): bool
 // A context is essentially a term with one missing subterm, a "hole".  It
 // is defined as follows:
 
-datatype Context = Hole | C_term(Context, Term) | value_C(Term/*Value*/, Context);
+datatype Context = Hole | C_term(Context, Term) | value_C(Term/*Value*/, Context)
 
 // The problem seems to suggest that the value_C form requires a value and
 // a context.  To formalize that notion, we define a predicate that checks this
@@ -167,7 +170,7 @@ function IsTerminal(t: Term): bool
 
 // The following theorem states the correctness of the FindAndStep function:
 
-ghost method Theorem_FindAndStep(t: Term)
+lemma Theorem_FindAndStep(t: Term)
   // If FindAndStep returns the term it started from, then there is no
   // way to take a step.  More precisely, there is no C[u] == t for which the
   // Step applies to "u".
@@ -191,7 +194,7 @@ ghost method Theorem_FindAndStep(t: Term)
 // computes the value of FindAndStep(t) as it goes along and it returns
 // that value.
 
-ghost method Lemma_FindAndStep(t: Term) returns (r: Term, C: Context, u: Term)
+lemma Lemma_FindAndStep(t: Term) returns (r: Term, C: Context, u: Term)
   ensures r == FindAndStep(t);
   ensures r == t ==> IsTerminal(t);
   ensures r != t ==>
@@ -199,25 +202,25 @@ ghost method Lemma_FindAndStep(t: Term) returns (r: Term, C: Context, u: Term)
             r == EvalExpr(C, Step(u));
 {
   Lemma_ContextPossibilities(t);
-  if (Step(t) != t) {
+  if Step(t) != t {
     // t == Hole[t] and Step applies t.  So, return Hole[Step(t)]
     return Step(t), Hole, t;
-  } else if (!t.Apply?) {
+  } else if !t.Apply? {
     r := t;
   } else {
     r, C, u := Lemma_FindAndStep(t.car);  // (*)
-    if (r != t.car) {
+    if r != t.car {
       // t has the form (a b) where a==t.car and b==t.cdr, and a==C[u] for some
       // context C and some u to which the Step applies.  t can therefore be
       // denoted by (C[u] b) == (C b)[u] and the Step applies to u.  So, return
       // (C b)[Step(u)] == (C[Step(u)] b).  Note that FindAndStep(a)
       // gives C[Step(u)].
       return Apply(r, t.cdr), C_term(C, t.cdr), u;
-    } else if (IsValue(t.car)) {
+    } else if IsValue(t.car) {
       r, C, u := Lemma_FindAndStep(t.cdr);
       assert IsTerminal(t.car);  // make sure this is still remembered from (*)
 
-      if (r != t.cdr) {
+      if r != t.cdr {
         // t has the form (a b) where a==t.car and b==t.cdr and "a" is a Value,
         // and b==C[u] for some context C and some u to which the Step applies.
         // t can therefore be denoted by (a C[u]) == (C a)[u] and the Step
@@ -225,7 +228,7 @@ ghost method Lemma_FindAndStep(t: Term) returns (r: Term, C: Context, u: Term)
         // that FindAndStep(b) gives C[Step(u)].
         return Apply(t.car, r), value_C(t.car, C), u;
       } else {
-        parallel (C,u | IsContext(C) && t == EvalExpr(C,u))
+        forall C,u | IsContext(C) && t == EvalExpr(C,u)
           ensures Step(u) == u;
         {
           // The following assert and the first assert of each "case" are
@@ -252,7 +255,7 @@ ghost method Lemma_FindAndStep(t: Term) returns (r: Term, C: Context, u: Term)
 // The proof of the lemma above used one more lemma, namely one that enumerates
 // lays out the options for how to represent a term as a C[u] pair.
 
-ghost method Lemma_ContextPossibilities(t: Term)
+lemma Lemma_ContextPossibilities(t: Term)
   ensures forall C,u :: IsContext(C) && t == EvalExpr(C, u) ==>
     (C == Hole && t == u) ||
     (t.Apply? && exists D :: C == C_term(D, t.cdr) && t.car == EvalExpr(D, u)) ||
@@ -267,7 +270,7 @@ ghost method Lemma_ContextPossibilities(t: Term)
 // sequence of terms from "t" to "r", each term reducing to its
 // successor in the trace.
 
-datatype Trace = EmptyTrace | ReductionStep(Trace, Term);
+datatype Trace = EmptyTrace | ReductionStep(Trace, Term)
 
 function IsTrace(trace: Trace, t: Term, r: Term): bool
 {
@@ -302,15 +305,16 @@ method reduction(t: Term) returns (r: Term)
   ensures exists trace :: IsTrace(trace, t, r);
   // The result "r" cannot be reduced any further:
   ensures IsTerminal(r);
+  decreases *;  // allow this method to diverge
 {
   r := t;
   ghost var trace := EmptyTrace;
-  while (true)
+  while true
     invariant IsTrace(trace, t, r);
     decreases *;  // allow this statement to loop forever
   {
     var u := FindAndStep(r);
-    if (u == r) {
+    if u == r {
       // we have found a fixpoint
       Theorem_FindAndStep(r);
       return;
@@ -362,13 +366,13 @@ method VerificationTask2(t: Term) returns (r: Term)
 {
   r := t;
   ghost var trace := EmptyTrace;
-  while (true)
+  while true
     invariant IsTrace(trace, t, r) && !ContainsS(r);
     invariant TerminatingReduction(t) == TerminatingReduction(r);
     decreases TermSize(r);
   {
     var u := FindAndStep(r);
-    if (u == r) {
+    if u == r {
       // we have found a fixpoint
       Theorem_FindAndStep(r);
       return;
@@ -438,22 +442,22 @@ function method ks(n: nat): Term
 // VerificationTask2) it computes the same thing as method VerificationTask2
 // does.
 
-ghost method VerificationTask3()
+lemma VerificationTask3()
   ensures forall n: nat ::
     TerminatingReduction(ks(n)) == if n % 2 == 0 then K else Apply(K, K);
 {
-  parallel (n: nat) {
+  forall n: nat {
     VT3(n);
   }
 }
 
-ghost method VT3(n: nat)
+lemma VT3(n: nat)
   ensures TerminatingReduction(ks(n)) == if n % 2 == 0 then K else Apply(K, K);
 {
   // Dafny's (way cool) induction tactic kicks in and proves the following
   // assertion automatically:
   assert forall p :: 2 <= p ==> FindAndStep(ks(p)) == ks(p-2);
-  // And then Dafny's (cool beyond words) induction tactic for ghost methods kicks
+  // And then Dafny's (cool beyond words) induction tactic for lemmas kicks
   // in to prove the postcondition.  (If this got you curious, scope out Leino's
   // VMCAI 2012 paper "Automating Induction with an SMT Solver".)
 }

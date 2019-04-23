@@ -1,11 +1,14 @@
-datatype List = Nil | Cons(Expr, List);
+// RUN: %dafny /compile:0 /dprint:"%t.dprint" /autoTriggers:0 "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
+datatype List = Nil | Cons(Expr, List)
 
 datatype Expr =
   Const(int) |
   Var(int) |
-  Nary(int, List);
+  Nary(int, List)
 
-static function Subst(e: Expr, v: int, val: int): Expr
+function Subst(e: Expr, v: int, val: int): Expr
 {
   match e
   case Const(c) => e
@@ -13,14 +16,14 @@ static function Subst(e: Expr, v: int, val: int): Expr
   case Nary(op, args) => Expr.Nary(op, SubstList(args, v, val))
 }
 
-static function SubstList(l: List, v: int, val: int): List
+function SubstList(l: List, v: int, val: int): List
 {
   match l
   case Nil => l
   case Cons(e, tail) => Cons(Subst(e, v, val), SubstList(tail, v, val))
 }
 
-static ghost method Theorem(e: Expr, v: int, val: int)
+lemma Theorem(e: Expr, v: int, val: int)
   ensures Subst(Subst(e, v, val), v, val) == Subst(e, v, val);
 {
   match e {
@@ -31,7 +34,7 @@ static ghost method Theorem(e: Expr, v: int, val: int)
   }
 }
 
-static ghost method Lemma(l: List, v: int, val: int)
+lemma Lemma(l: List, v: int, val: int)
   ensures SubstList(SubstList(l, v, val), v, val) == SubstList(l, v, val);
 {
   match l {
@@ -47,9 +50,9 @@ static ghost method Lemma(l: List, v: int, val: int)
 datatype Expression =
   Const(int) |
   Var(int) |
-  Nary(int, seq<Expression>);
+  Nary(int, seq<Expression>)
 
-static function Substitute(e: Expression, v: int, val: int): Expression
+function Substitute(e: Expression, v: int, val: int): Expression
   decreases e;
 {
   match e
@@ -58,7 +61,7 @@ static function Substitute(e: Expression, v: int, val: int): Expression
   case Nary(op, args) => Expression.Nary(op, SubstSeq(e, args, v, val))
 }
 
-static function SubstSeq(/*ghost*/ parent: Expression,
+function SubstSeq(/*ghost*/ parent: Expression,
                          q: seq<Expression>, v: int, val: int): seq<Expression>
   requires (forall a :: a in q ==> a < parent);
   decreases parent, q;
@@ -67,7 +70,7 @@ static function SubstSeq(/*ghost*/ parent: Expression,
   SubstSeq(parent, q[..|q|-1], v, val) + [Substitute(q[|q|-1], v, val)]
 }
 
-static ghost method TheoremSeq(e: Expression, v: int, val: int)
+lemma TheoremSeq(e: Expression, v: int, val: int)
   ensures Substitute(Substitute(e, v, val), v, val) == Substitute(e, v, val);
 {
   match e {
@@ -94,7 +97,7 @@ static ghost method TheoremSeq(e: Expression, v: int, val: int)
   }
 }
 
-static ghost method LemmaSeq(parent: Expression, q: seq<Expression>, v: int, val: int)
+lemma LemmaSeq(parent: Expression, q: seq<Expression>, v: int, val: int)
   requires (forall a :: a in q ==> a < parent);
   ensures |SubstSeq(parent, q, v, val)| == |q|;
   ensures (forall k :: 0 <= k && k < |q| ==>

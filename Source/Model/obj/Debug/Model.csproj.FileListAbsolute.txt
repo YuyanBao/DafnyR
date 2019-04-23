@@ -1,5 +1,0 @@
-C:\Projects\Boogie\Source\Model\bin\Debug\Model.dll
-C:\Projects\Boogie\Source\Model\bin\Debug\Model.pdb
-C:\Projects\Boogie\Source\Model\obj\Debug\ResolveAssemblyReference.cache
-C:\Projects\Boogie\Source\Model\obj\Debug\Model.dll
-C:\Projects\Boogie\Source\Model\obj\Debug\Model.pdb

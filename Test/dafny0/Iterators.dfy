@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 iterator MyIter<T>(q: T) yields (x: T, y: T)
 {
 }
@@ -24,7 +27,7 @@ iterator Naturals(u: int) yields (n: nat)
 }
 
 method Main() {
-  var m := new MyIter.MyIter(12);
+  var m := new MyIter(12);
   assert m.ys == m.xs == [];
   var a := m.x;
   if (a <= 13) {
@@ -37,7 +40,7 @@ method Main() {
     mer := m.MoveNext();  // error
   }
 
-  var n := new MyIntIter.MyIntIter();
+  var n := new MyIntIter();
   var patience := 10;
   while (patience != 0)
     invariant n.Valid() && fresh(n._new);
@@ -48,7 +51,7 @@ method Main() {
     patience := patience - 1;
   }
 
-  var o := new Naturals.Naturals(18);
+  var o := new Naturals(18);
   var remaining := 100;
   while (remaining != 0)
     invariant o.Valid() && fresh(o._new);
@@ -80,7 +83,7 @@ iterator IterA(c: Cell)
 method TestIterA()
 {
   var c := new Cell;
-  var iter := new IterA.IterA(c);
+  var iter := new IterA(c);
   var tmp := c.data;
   var more := iter.MoveNext();
   assert tmp == c.data;  // error
@@ -107,7 +110,7 @@ iterator IterB(c: Cell)
 method TestIterB()
 {
   var c := new Cell;
-  var iter := new IterB.IterB(c);
+  var iter := new IterB(c);
   var tmp := c.data;
   var more := iter.MoveNext();
   if (more) {
@@ -138,7 +141,7 @@ iterator IterC(c: Cell)
 method TestIterC()
 {
   var c := new Cell;
-  var iter := new IterC.IterC(c);
+  var iter := new IterC(c);
   var tmp := c.data;
   var more := iter.MoveNext();
   if (more) {
@@ -147,7 +150,7 @@ method TestIterC()
     assert tmp == c.data;  // error: the postcondition says nothing about this
   }
 
-  iter := new IterC.IterC(c);
+  iter := new IterC(c);
   c.data := 17;
   more := iter.MoveNext();  // error: iter.Valid() may not hold
 }
@@ -175,11 +178,11 @@ iterator AllocationIterator(x: Cell)
   }
 }
 
-static method SomeMethod()
+method SomeMethod()
 {
 }
 
-static method AnotherMethod() returns (u: Cell, v: Cell)
+method AnotherMethod() returns (u: Cell, v: Cell)
   ensures u != null && fresh(u);
 {
   u := new Cell;
@@ -208,7 +211,7 @@ iterator DoleOutReferences(u: Cell) yields (r: Cell, c: Cell)
       assert c in _new;  // as is checked here as well
       assert r.data == 12;  // error: it may have changed 
     } else {
-      parallel (z | z in myCells) {
+      forall z | z in myCells {
         z.data := z.data + 1;  // we're allowed to modify these, because they are all in _new
       }
     }
@@ -217,7 +220,7 @@ iterator DoleOutReferences(u: Cell) yields (r: Cell, c: Cell)
 
 method ClientOfNewReferences()
 {
-  var m := new DoleOutReferences.DoleOutReferences(null);
+  var m := new DoleOutReferences(null);
   var i := 86;
   while (i != 0)
     invariant m.Valid() && fresh(m._new);
@@ -231,5 +234,150 @@ method ClientOfNewReferences()
       assert m.Valid();  // error:  ... however, don't expect m.Valid() to survive the change to m.c.data
     }
     i := i - 1;
+  }
+}
+
+// ------ recursive iterators --------------------------------------
+
+module ITER_A {
+  iterator RecursiveIterator(n: nat, r: RecIterCaller, good: bool)
+    requires r != null;
+    decreases n+2, 0;
+  {
+    if n == 0 {
+    } else if good {
+      r.M(n - 1);
+    } else {
+      r.M(n + 1);  // error: may fail to terminate
+    }
+  }
+
+  class RecIterCaller {
+    method M(n: nat)
+      decreases n+2;
+    {
+      var good;
+      var iter := new RecursiveIterator(n, this, good);
+      var more := iter.MoveNext();
+    }
+  }
+}
+module ITER_B {
+  iterator RecursiveIterator(n: nat, r: RecIterCaller, good: bool)
+    requires r != null;
+    decreases n;
+  {
+    if n == 0 {
+    } else if good {
+      r.M(n - 1);
+    } else {
+      r.M(n + 1);  // error: may fail to terminate
+    }
+  }
+
+  class RecIterCaller {
+    method M(n: nat)
+      decreases n;
+    {
+      var good;
+      var iter := new RecursiveIterator(n, this, good);
+      var more := iter.MoveNext();  // error: failure to decrease variant function
+    }
+  }
+}
+module ITER_C {
+  iterator RecursiveIterator(n: nat, r: RecIterCaller, good: bool)
+    requires r != null;
+  {
+    if n == 0 {
+    } else if good {
+      r.M(n - 1);
+    } else {
+      r.M(n + 1);  // error: may fail to terminate
+    }
+  }
+
+  class RecIterCaller {
+    method M(n: nat)
+    {
+      var good;
+      var iter := new RecursiveIterator(n, this, good);
+      var more := iter.MoveNext();
+    }
+  }
+}
+module ITER_D {
+  iterator RecursiveIterator(n: nat, r: RecIterCaller, good: bool)
+    requires r != null;
+  {
+    if n == 0 {
+    } else if good {
+      r.M(n - 1, {});
+    } else {
+      r.M(n + 1, {});  // error: may fail to terminate
+    }
+  }
+
+  class RecIterCaller {
+    method M(n: nat, incomparable: set<int>)
+    {
+      var good;
+      var iter := new RecursiveIterator(n, this, good);
+      var more := iter.MoveNext();  // error: failure to decrease variant function
+    }
+  }
+}
+module ITER_E {
+  class Cell {
+    var data: nat;
+  }
+  iterator RecursiveIterator(cell: Cell, n: nat, r: RecIterCaller, good: bool)
+    requires cell != null && r != null;
+    modifies cell;
+    decreases if cell.data < 2 then n else n+n-n;
+  {
+    if n == 0 {
+    } else if good {
+      r.M(n - 1);
+    } else {
+      r.M(n + 1);  // error: may fail to terminate
+    }
+  }
+
+  class RecIterCaller {
+    method M(n: nat)
+    {
+      var good;
+      var cell := new Cell;
+      var iter := new RecursiveIterator(cell, n, this, good);
+      var more := iter.MoveNext();  // error: failure to decrease variant function
+    }
+  }
+}
+module ITER_F {
+  class Cell {
+    var data: nat;
+  }
+  iterator RecursiveIterator(cell: Cell, n: nat, r: RecIterCaller, good: bool)
+    requires cell != null && r != null;
+    modifies cell;
+    decreases if cell.data < 2 then n else n+n-n, 0;
+  {
+    if n == 0 {
+    } else if good {
+      r.M(n - 1);
+    } else {
+      r.M(n + 1);  // error: may fail to terminate
+    }
+  }
+
+  class RecIterCaller {
+    method M(n: nat)
+    {
+      var good;
+      var cell := new Cell;
+      var iter := new RecursiveIterator(cell, n, this, good);
+      var more := iter.MoveNext();
+    }
   }
 }

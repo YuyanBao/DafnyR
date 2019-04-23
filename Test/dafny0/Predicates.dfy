@@ -1,7 +1,10 @@
+// RUN: %dafny /compile:0 /print:"%t.print" /dprint:"%t.dprint" /autoTriggers:1  "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 module A {
   class C {
     var x: int;
-    predicate P()
+    protected predicate P()
       reads this;
     {
       x < 100
@@ -15,7 +18,7 @@ module A {
     method N()
       modifies this;
       ensures P();
-    {
+    {  // error: in module B, the postcondition P() has been strengthened and no longer holds
       x := -28;
     }
   }
@@ -23,7 +26,7 @@ module A {
 
 module B refines A {
   class C {
-    predicate P()
+    protected predicate P()
     {
       0 <= x
     }
@@ -36,7 +39,7 @@ module Loose {
   class MyNumber {
     var N: int;
     ghost var Repr: set<object>;
-    predicate Valid
+    protected predicate Valid()
       reads this, Repr;
     {
       this in Repr && null !in Repr &&
@@ -44,20 +47,20 @@ module Loose {
     }
     constructor Init()
       modifies this;
-      ensures Valid && fresh(Repr - {this});
+      ensures Valid() && fresh(Repr - {this});
     {
       N, Repr := 0, {this};
     }
     method Inc()
-      requires Valid;
+      requires Valid();
       modifies Repr;
       ensures old(N) < N;
-      ensures Valid && fresh(Repr - old(Repr));
+      ensures Valid() && fresh(Repr - old(Repr));
     {
       N := N + 2;
     }
     method Get() returns (n: int)
-      requires Valid;
+      requires Valid();
       ensures n == N;
     {
       n := N;
@@ -67,7 +70,7 @@ module Loose {
 
 module Tight refines Loose {
   class MyNumber {
-    predicate Valid
+    protected predicate Valid()
     {
       N % 2 == 0
     }
@@ -79,7 +82,7 @@ module Tight refines Loose {
 }
 
 module UnawareClient {
-  import L = Loose;
+  import L = Loose
   method Main0() {
     var n := new L.MyNumber.Init();
     assert n.N == 0;  // error: this is not known
@@ -91,7 +94,7 @@ module UnawareClient {
 }
 
 module AwareClient {
-  import T = Tight;
+  import T = Tight
   method Main1() {
     var n := new T.MyNumber.Init();
     assert n.N == 0;
@@ -107,20 +110,20 @@ module AwareClient {
 module Tricky_Base {
   class Tree {
     var x: int;
-    predicate Constrained
+    predicate Constrained()
       reads this;
     {
       x < 10
     }
-    predicate Valid
+    protected predicate Valid()
       reads this;
     {
       x < 100
     }
     method Init()
       modifies this;
-      ensures Valid;
-    {
+      ensures Valid();
+    {  // error: in module Tricky_Full, the strengthened postcondition Valid() no longer holds
       x := 20;
     }
   }
@@ -128,9 +131,9 @@ module Tricky_Base {
 
 module Tricky_Full refines Tricky_Base {
   class Tree {
-    predicate Valid
+    protected predicate Valid()
     {
-      Constrained  // this causes an error to be generated for the inherited Init
+      Constrained()  // this causes an error to be generated for the inherited Init
     }
   }
 }
@@ -140,43 +143,43 @@ module Tricky_Full refines Tricky_Base {
 module Q0 {
   class C {
     var x: int;
-    predicate P
+    protected predicate P()
       reads this;
     {
       true
     }
     method M()
       modifies this;
-      ensures forall c: C :: c != null ==> c.P;
-    {
+      ensures forall c: C :: c != null ==> c.P();
+    {  // error: in module Q1, the postcondition no longer holds
     }
-    predicate Q
+    predicate Q()
       reads this;
     {
       x < 100
     }
     method N()
       modifies this;
-      ensures forall c :: c == this ==> c.Q;
-    {
-      x := 102;  // error: fails to establish postcondition (but this error should not be repeated in Q1 below)
+      ensures forall c: C :: c == this ==> c.Q();
+    {  // error: fails to establish postcondition (but this error should not be repeated in Q1 below)
+      x := 102;
     }
-    predicate R reads this;  // a body-less predicate
+    predicate R() reads this;  // a body-less predicate
   }
 }
 
 module Q1 refines Q0 {
   class C {
-    predicate P
+    protected predicate P()
     {
       x == 18
     }
-    predicate R  // no body yet
+    predicate R()  // no body yet
   }
 }
 
 module Q2 refines Q1 {
   class C {
-    predicate R { x % 3 == 2 }  // finally, give it a body
+    predicate R() { x % 3 == 2 }  // finally, give it a body
   }
 }

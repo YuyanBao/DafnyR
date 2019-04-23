@@ -1,3 +1,6 @@
+// RUN: %dafny /compile:0 /tracePOs /print:"%t.print" /dprint:"%t.dprint" "%s" > "%t"
+// RUN: %diff "%s.expect" "%t"
+
 module M0 {
   class C {
     method M(c: C, x: int, y: int) returns (r: int)
@@ -14,7 +17,7 @@ module M0 {
       r := 8;
     }
 
-    predicate P(x: int)
+    protected predicate P(x: int)
       ensures true;  // this postcondition will not be re-checked in refinements, because it does not mention P itself (or anything else that may change in the refinement)
       ensures x < 60 ==> P(x);
     {
@@ -44,7 +47,7 @@ module M1 refines M0 {
       else {}
     }
 
-    predicate P...  // error: inherited postcondition 'x < 60 ==> P(x)' is violated by this strengthening of P()
+    protected predicate P...  // error: inherited postcondition 'x < 60 ==> P(x)' is violated by this strengthening of P()
     {
       false  // with this strengthening of P(), the postcondition fails (still, note that only one of the postconditions is re-checked)
     }
@@ -53,4 +56,3 @@ module M1 refines M0 {
     // Ditto for R
   }
 }
-
