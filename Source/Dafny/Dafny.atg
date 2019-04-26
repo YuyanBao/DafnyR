@@ -1698,6 +1698,7 @@ TypeAndToken<out IToken tok, out Type ty, bool inExpressionContext>
   | "int"                           (. tok = t;  ty = new IntType(); .)
   | "nat"                           (. tok = t;  ty = new UserDefinedType(tok, tok.val, null); .)
   | "real"                          (. tok = t;  ty = new RealType(); .)
+  | "region"						(. tok = t;  ty = new RegionType(); .)   // Yuyan
   | "ORDINAL"                       (. tok = t;  ty = new BigOrdinalType(); .)
   | bvToken                         (. tok = t;
                                        int w = StringToInt(tok.val.Substring(2), 0, "bitvectors that wide");
@@ -2057,6 +2058,10 @@ FrameExpression<out FrameExpression fe, bool allowSemi, bool allowLambda>
   |
     "`" Ident<out id>          (. fieldName = id.val; .)
                                (. fe = new FrameExpression(id, new ImplicitThisExpr(id), fieldName); .)
+  | "region"	
+      [       
+		RegionConstructExpr<t, out e, null> 		(. feTok = e.tok; fe = new FrameExpression(feTok, e, null);.)
+      ] 
   )
   .
 FunctionBody<out Expression/*!*/ e, out IToken bodyStart, out IToken bodyEnd>

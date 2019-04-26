@@ -7,3 +7,14 @@ C:\Users\baoyu\Projects\dafny\Binaries\Dafny.pdb
 C:\Users\baoyu\Projects\dafny\Source\DafnyDriver\obj\Debug\Dafny.rewritten
 C:\Users\baoyu\Projects\dafny\Source\DafnyDriver\obj\Debug\Dafny.exe
 C:\Users\baoyu\Projects\dafny\Source\DafnyDriver\obj\Debug\Dafny.pdb
+C:\Users\Yuyan\Documents\Projects\DafnyR\Binaries\CodeContracts\Dafny.noReferenceAssembly
+C:\Users\Yuyan\Documents\Projects\DafnyR\Binaries\DafnyRuntime.cs
+C:\Users\Yuyan\Documents\Projects\DafnyR\Binaries\Dafny.exe.config
+C:\Users\Yuyan\Documents\Projects\DafnyR\Binaries\Dafny.exe
+C:\Users\Yuyan\Documents\Projects\DafnyR\Binaries\Dafny.pdb
+C:\Users\Yuyan\Documents\Projects\DafnyR\Source\DafnyDriver\obj\Debug\DafnyDriver.csprojAssemblyReference.cache
+C:\Users\Yuyan\Documents\Projects\DafnyR\Source\DafnyDriver\obj\Debug\DafnyDriver.csproj.CoreCompileInputs.cache
+C:\Users\Yuyan\Documents\Projects\DafnyR\Source\DafnyDriver\obj\Debug\Dafny.rewritten
+C:\Users\Yuyan\Documents\Projects\DafnyR\Source\DafnyDriver\obj\Debug\DafnyDriver.csproj.CopyComplete
+C:\Users\Yuyan\Documents\Projects\DafnyR\Source\DafnyDriver\obj\Debug\Dafny.exe
+C:\Users\Yuyan\Documents\Projects\DafnyR\Source\DafnyDriver\obj\Debug\Dafny.pdb
