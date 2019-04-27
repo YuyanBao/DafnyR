@@ -4,14 +4,13 @@
 // Copyright (C) Microsoft Corporation.  All Rights Reserved.
 //
 //-----------------------------------------------------------------------------
-using System;
-using System.Text;
-using System.Collections.Generic;
-using System.Diagnostics.Contracts;
-using System.Numerics;
-using System.Linq;
 using Microsoft.Boogie;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Linq;
+using System.Numerics;
 
 namespace Microsoft.Dafny
 {
@@ -10763,7 +10762,8 @@ namespace Microsoft.Dafny
             Mod,
             BitwiseAnd,
             BitwiseOr,
-            BitwiseXor
+            BitwiseXor,
+            SepConj // separation
         }
         public readonly Opcode Op;
         public enum ResolvedOpcode
@@ -10844,7 +10844,23 @@ namespace Microsoft.Dafny
             // datatypes
             RankLt,
             RankGt,
+            // regions
+            RegionEq,
+            RegionNeq,
+            RegionUnion,
+            Subregion,
+            ProperSubregion,
+            Superregion,
+            ProperSuperregion,
+            RegionFilter,
+            InRegion,
+            NotInRegion,
+            RegionDisjoint,
+            RegionDifference,
+            RegionIntersection,
 
+            // Separation conjunction
+            SepConj
 
         }
         private ResolvedOpcode _theResolvedOp = ResolvedOpcode.YetUndetermined;
@@ -10890,6 +10906,7 @@ namespace Microsoft.Dafny
                 case ResolvedOpcode.MultiSetEq:
                 case ResolvedOpcode.SeqEq:
                 case ResolvedOpcode.MapEq:
+                case ResolvedOpcode.RegionEq: // region eq
                     return Opcode.Eq;
 
                 case ResolvedOpcode.NeqCommon:
@@ -10897,6 +10914,7 @@ namespace Microsoft.Dafny
                 case ResolvedOpcode.MultiSetNeq:
                 case ResolvedOpcode.SeqNeq:
                 case ResolvedOpcode.MapNeq:
+                case ResolvedOpcode.RegionNeq:
                     return Opcode.Neq;
 
                 case ResolvedOpcode.Lt:
@@ -10905,6 +10923,7 @@ namespace Microsoft.Dafny
                 case ResolvedOpcode.ProperMultiSuperset:
                 case ResolvedOpcode.ProperPrefix:
                 case ResolvedOpcode.RankLt:
+                case ResolvedOpcode.ProperSubregion: // region
                     return Opcode.Lt;
 
                 case ResolvedOpcode.Le:
@@ -10912,12 +10931,14 @@ namespace Microsoft.Dafny
                 case ResolvedOpcode.Subset:
                 case ResolvedOpcode.MultiSubset:
                 case ResolvedOpcode.Prefix:
+                case ResolvedOpcode.Subregion:
                     return Opcode.Le;
 
                 case ResolvedOpcode.Ge:
                 case ResolvedOpcode.GeChar:
                 case ResolvedOpcode.Superset:
                 case ResolvedOpcode.MultiSuperset:
+                case ResolvedOpcode.Superregion:
                     return Opcode.Ge;
 
                 case ResolvedOpcode.Gt:
@@ -10925,6 +10946,7 @@ namespace Microsoft.Dafny
                 case ResolvedOpcode.ProperSuperset:
                 case ResolvedOpcode.ProperMultiSubset:
                 case ResolvedOpcode.RankGt:
+                case ResolvedOpcode.ProperSuperregion:
                     return Opcode.Gt;
 
                 case ResolvedOpcode.LeftShift:
@@ -10938,16 +10960,19 @@ namespace Microsoft.Dafny
                 case ResolvedOpcode.MultiSetUnion:
                 case ResolvedOpcode.MapUnion:
                 case ResolvedOpcode.Concat:
+                case ResolvedOpcode.RegionUnion:
                     return Opcode.Add;
 
                 case ResolvedOpcode.Sub:
                 case ResolvedOpcode.SetDifference:
                 case ResolvedOpcode.MultiSetDifference:
+                case ResolvedOpcode.RegionDifference:
                     return Opcode.Sub;
 
                 case ResolvedOpcode.Mul:
                 case ResolvedOpcode.Intersection:
                 case ResolvedOpcode.MultiSetIntersection:
+                case ResolvedOpcode.RegionIntersection:
                     return Opcode.Mul;
 
                 case ResolvedOpcode.Div: return Opcode.Div;
@@ -10960,19 +10985,25 @@ namespace Microsoft.Dafny
                 case ResolvedOpcode.Disjoint:
                 case ResolvedOpcode.MultiSetDisjoint:
                 case ResolvedOpcode.MapDisjoint:
+                case ResolvedOpcode.RegionDisjoint:
                     return Opcode.Disjoint;
 
                 case ResolvedOpcode.InSet:
                 case ResolvedOpcode.InMultiSet:
                 case ResolvedOpcode.InSeq:
                 case ResolvedOpcode.InMap:
+                case ResolvedOpcode.InRegion:
                     return Opcode.In;
 
                 case ResolvedOpcode.NotInSet:
                 case ResolvedOpcode.NotInMultiSet:
                 case ResolvedOpcode.NotInSeq:
                 case ResolvedOpcode.NotInMap:
+                case ResolvedOpcode.NotInRegion:
                     return Opcode.NotIn;
+
+                case ResolvedOpcode.SepConj:
+                    return Opcode.SepConj;
 
                 case ResolvedOpcode.LessThanLimit:  // not expected here (but if it were, the same case as Lt could perhaps be used)
                 default:
@@ -11035,6 +11066,8 @@ namespace Microsoft.Dafny
                     return "|";
                 case Opcode.BitwiseXor:
                     return "^";
+                case Opcode.SepConj:
+                    return "*";
                 default:
                     Contract.Assert(false);
                     throw new cce.UnreachableException();  // unexpected operator
@@ -11994,7 +12027,9 @@ namespace Microsoft.Dafny
         }
     }
 
-    // Yuyan: region construct expression ("region{}, region{Expr}, region{Expr.*}")
+    /// <summary>
+    /// region construct expression: region{}, region{Expr}, region{Expr.*}
+    /// </summary> 
     public class RegionConstructExpression : Expression
     {
         // E may be WildcardExpr;
@@ -12010,6 +12045,10 @@ namespace Microsoft.Dafny
             this.E = e;
             this.RegionList = new List<Region>();
             this.canUseRThis = false;
+        }
+
+        public override IEnumerable<Expression> SubExpressions {
+            get { yield return E; }
         }
     }
 
@@ -12036,8 +12075,37 @@ namespace Microsoft.Dafny
             Contract.Invariant(Field != null);
         }
     }
-    
-    
+
+    /// <summary>
+    /// region filter expression: filter{r, T}, filter{r, T, f}
+    /// </summary>
+    public class RegionFilterExpression : Expression
+    {
+        public readonly Expression regionE;
+        public readonly List<Expression> filterList;
+        public int filterType;
+
+        [ContractInvariantMethod]
+        void ObjectInvariant()
+        {
+            Contract.Invariant(regionE != null);
+            Contract.Invariant(filterList != null);
+        }
+
+        public RegionFilterExpression(IToken tok, Expression regionE, List<Expression> filterList) 
+            : base(tok)
+        {
+            this.regionE = regionE;
+            this.filterList = filterList;
+        }
+
+
+        public override IEnumerable<Expression> SubExpressions {
+            get { yield return regionE; }
+        }
+    }
+
+
     /// <summary>
     /// A CasePattern is either a BoundVar or a datatype constructor with optional arguments.
     /// Lexically, the CasePattern starts with an identifier.  If it continues with an open paren (as
