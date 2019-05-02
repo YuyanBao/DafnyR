@@ -19,6 +19,10 @@ C:\Users\baoyu\Projects\dafny\Source\Dafny\bin\Debug\BoogieCodeContractsExtender
 C:\Users\baoyu\Projects\dafny\Source\Dafny\bin\Debug\BoogieGraph.pdb
 C:\Users\baoyu\Projects\dafny\Source\Dafny\obj\Debug\DafnyPipeline.rewritten
 C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\bin\Debug\CodeContracts\DafnyPipeline.noReferenceAssembly
+C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\obj\Debug\DafnyPipeline.csprojAssemblyReference.cache
+C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\obj\Debug\DafnyPipeline.csproj.CoreCompileInputs.cache
+C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\obj\Debug\DafnyPipeline.dll
+C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\obj\Debug\DafnyPipeline.pdb
 C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\bin\Debug\DafnyRuntime.cs
 C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\bin\Debug\DafnyPipeline.dll
 C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\bin\Debug\DafnyPipeline.pdb
@@ -34,9 +38,5 @@ C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\bin\Debug\BoogieCore.pdb
 C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\bin\Debug\BoogieParserHelper.pdb
 C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\bin\Debug\BoogieCodeContractsExtender.pdb
 C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\bin\Debug\BoogieGraph.pdb
-C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\obj\Debug\DafnyPipeline.csprojAssemblyReference.cache
-C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\obj\Debug\DafnyPipeline.csproj.CoreCompileInputs.cache
 C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\obj\Debug\DafnyPipeline.rewritten
 C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\obj\Debug\DafnyPipeline.csproj.CopyComplete
-C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\obj\Debug\DafnyPipeline.dll
-C:\Users\Yuyan\Documents\Projects\DafnyR\Source\Dafny\obj\Debug\DafnyPipeline.pdb
