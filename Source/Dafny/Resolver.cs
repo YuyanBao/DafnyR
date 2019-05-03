@@ -7998,6 +7998,7 @@ namespace Microsoft.Dafny {
         /// </summary>
         void ResolveRegionExpression(RegionConstructExpression rce) {
             Contract.Requires(rce != null);
+         //   Contract.Ensures(Contract.Result<List<Region>>() != null);
 
             rce.Type = new RegionType();
             Expression e = rce.E;
@@ -8008,11 +8009,50 @@ namespace Microsoft.Dafny {
                 // for region{}
             } else if (e.Resolved is WildcardExpr) {
                 // nothing to do
-            } else if (e.Resolved is ExprDotName) { // used to be FieldSelect Expr 
+            } else if (e.Resolved is MemberSelectExpr) { // used to be FieldSelect Expr 
                 // region{o.f}
-                var edn = (ExprDotName)e.Resolved;
-                 
+                var ems = (MemberSelectExpr)e.Resolved;
+                t = ems.Obj.Type;
+                if (ems.Member is Field) {
+                    Field f = (Field)ems.Member;
+                    if (f.Name == "*") {
+                        rce.RegionList = GenerateRegionList(ems.Obj);
+                        rce.canUseRThis = false;
+                    } else {
+                        rce.RegionList.Add(new Region(ems.Obj, f));
+                    }
+                }
+            } else {
+                Contract.Assert(false); throw new cce.UnreachableException();  // unexpected expression
+
             }
+        }
+
+        /// <summary>
+        /// generate region list
+        /// </summary>
+        List<Region> GenerateRegionList(Expression e) {
+            Contract.Requires(e != null);
+            Contract.Ensures(Contract.Result<List<Region>>() != null);
+            Contract.Ensures(cce.NonNullElements(Contract.Result<List<Region>>()));
+            List<Region> regionList = new List<Region>();
+
+            Type t = e.Type;
+
+            if (UserDefinedType.DenotesClass(t) != null) { // it must be non-null
+                UserDefinedType ctype = (UserDefinedType)t;
+                ClassDecl cd = (ClassDecl)ctype.ResolvedClass;  // correctness of case follows from the postcondition of DenoteClass
+                Contract.Assert(ctype.TypeArgs.Count == cd.TypeArgs.Count);  // follows from the fact that ctype was resolved
+
+                foreach(MemberDecl member in cd.Members) {
+                    if (member is Field) {
+                        Field f = (Field)member;
+                        regionList.Add(new Region(e.Resolved, f));
+                    }
+                }
+            }
+
+            return regionList;
         }
 
         public enum FrameExpressionUse { Reads, Modifies, Unchanged }
@@ -12209,6 +12249,13 @@ namespace Microsoft.Dafny {
 
             } else if (expr is MatchExpr) {
                 ResolveMatchExpr((MatchExpr)expr, opts);
+            } else if (expr is RegionConstructExpression) { // Yuyan: added to resolve RegionConstructExpression
+                RegionConstructExpression rce = (RegionConstructExpression)expr;
+                ResolveExpression(rce.E, opts);
+                Type t = rce.E.Type;
+                Contract.Assert(t != null);  // follows from postcondition of ResolveExpression
+                ResolveRegionExpression(rce);
+                expr.Type = new RegionType();
             } else {
                 Contract.Assert(false); throw new cce.UnreachableException();  // unexpected expression
             }
