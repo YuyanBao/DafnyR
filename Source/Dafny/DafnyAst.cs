@@ -12105,7 +12105,43 @@ namespace Microsoft.Dafny
         }
     }
 
+    /// <summary>
+    /// Yuyan
+    /// Not sure about it
+    /// </summary>
+    public class ClassExpression : Expression {
+        public readonly string ClassName;
 
+        public ClassExpression(IToken tok)
+            : base(tok) {
+            Contract.Requires(tok != null);
+            ClassName = tok.val;
+        }
+
+        [ContractInvariantMethod]
+        private void ObjectInvariant() {
+            Contract.Invariant(ClassName != null);
+        }
+
+        public ClassDecl ClsDecl;  // filed in the resoving time
+    }
+
+
+    /// <summary>
+    /// Yuyan
+    /// Not sure about it
+    /// </summary>
+    public class FieldExpression : Expression {
+
+        public readonly string FieldName;
+        public Field Field; // filled in during resolution (but is null if FieldName is)
+        public FieldExpression(IToken token)
+            : base(token) {
+            Contract.Requires(token != null);
+            this.FieldName = token.val;
+        }
+    }
+ 
     /// <summary>
     /// A CasePattern is either a BoundVar or a datatype constructor with optional arguments.
     /// Lexically, the CasePattern starts with an identifier.  If it continues with an open paren (as

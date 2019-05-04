@@ -3231,7 +3231,7 @@ RegionConstructExpr<.IToken/*!*/ regionToken, out Expression e.>
 	 e = dummyExpr; 
 	 Expression/*!*/ region = dummyExpr;
   .)       
-  ( "{" [Expression<out region>] "}"    (. e = new RegionConstructExpression(regionToken, region); .)
+  ( "{" [Expression<out region, false, false>] "}"    (. e = new RegionConstructExpression(regionToken, region); .)
   )
   .
 
@@ -3245,7 +3245,7 @@ RegionFilterExpr<.IToken/*!*/ filterToken, out Expression e.>
   .)
 
    "{"
-   	      Expression<out e>		  (. regionExpr = e; .)
+   	      Expression<out e, false, false>		  (. regionExpr = e; .)
 	  "," 
 	 ["class:"] Ident<out id>			  (. e = new ClassExpression(id); filterList.Add(e); .)
 	  
