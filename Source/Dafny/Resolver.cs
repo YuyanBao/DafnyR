@@ -8041,13 +8041,17 @@ namespace Microsoft.Dafny {
 
             if (UserDefinedType.DenotesClass(t) != null) { // it must be non-null
                 UserDefinedType ctype = (UserDefinedType)t;
-                ClassDecl cd = (ClassDecl)ctype.ResolvedClass;  // correctness of case follows from the postcondition of DenoteClass
-                Contract.Assert(ctype.TypeArgs.Count == cd.TypeArgs.Count);  // follows from the fact that ctype was resolved
+                TopLevelDecl tlc = (TopLevelDecl)ctype.ResolvedClass;
+                if (tlc is NonNullTypeDecl) {
+                    NonNullTypeDecl nntd = (NonNullTypeDecl)tlc;
+                    ClassDecl cd = nntd.Class;
+                    Contract.Assert(ctype.TypeArgs.Count == cd.TypeArgs.Count);  // follows from the fact that ctype was resolved
 
-                foreach(MemberDecl member in cd.Members) {
-                    if (member is Field) {
-                        Field f = (Field)member;
-                        regionList.Add(new Region(e.Resolved, f));
+                    foreach (MemberDecl member in cd.Members) {
+                        if (member is Field) {
+                            Field f = (Field)member;
+                            regionList.Add(new Region(e.Resolved, f));
+                        }
                     }
                 }
             }
@@ -11581,6 +11585,7 @@ namespace Microsoft.Dafny {
                 }
                 if (currentClass != null && !currentClass.IsDefaultClass) {
                     expr.Type = GetThisType(expr.tok, currentClass);  // do this regardless of scope.AllowInstance, for better error reporting
+                    GenerateRegionList(expr); // Yuyan
                 }
 
             } else if (expr is IdentifierExpr) {
@@ -12249,6 +12254,21 @@ namespace Microsoft.Dafny {
 
             } else if (expr is MatchExpr) {
                 ResolveMatchExpr((MatchExpr)expr, opts);
+            } else if (expr is ClassExpression) {     // Yuyan: added ClassExpression used in the region-filter-expression
+                ClassExpression ce = (ClassExpression)expr;
+                TopLevelDecl d;
+                if (!moduleInfo.TopLevels.TryGetValue(ce.ClassName, out d)) {
+                    reporter.Error(MessageSource.Resolver, expr, "Undeclared datatype: {0}", ce.ClassName);
+                } else if (d is AmbiguousTopLevelDecl) {
+                    reporter.Error(MessageSource.Resolver, expr, "The name {0} ambiguously refers to a type in one of the modules {1}", ce.ClassName, ((AmbiguousTopLevelDecl)d).ModuleNames());
+                } else if (d is ClassDecl) {
+                    ce.ClsDecl = (ClassDecl)d;
+                } else {
+                    reporter.Error(MessageSource.Resolver, expr, "Expected class name: {0}", ce.ClassName);
+                }
+            } else if (expr is FieldExpression) {  // Yuyan: added FieldExpression used in the region-filter-expression
+
+                // nothing can do, resolve it in resolving region-filter-expression
             } else if (expr is RegionConstructExpression) { // Yuyan: added to resolve RegionConstructExpression
                 RegionConstructExpression rce = (RegionConstructExpression)expr;
                 ResolveExpression(rce.E, opts);
