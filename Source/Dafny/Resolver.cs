@@ -11585,7 +11585,6 @@ namespace Microsoft.Dafny {
                 }
                 if (currentClass != null && !currentClass.IsDefaultClass) {
                     expr.Type = GetThisType(expr.tok, currentClass);  // do this regardless of scope.AllowInstance, for better error reporting
-                    GenerateRegionList(expr); // Yuyan
                 }
 
             } else if (expr is IdentifierExpr) {

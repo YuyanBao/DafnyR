@@ -34,6 +34,7 @@ namespace Microsoft.Dafny
           0x10000000); // 256MB stack size to prevent stack overflow
       thread.Start();
       thread.Join();
+      Console.ReadLine();
       return ret;
     }
 

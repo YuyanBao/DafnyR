@@ -2483,6 +2483,12 @@ namespace Microsoft.Dafny {
         wr.Write("[BoogieFunctionCall]");  // this prevents debugger watch window crash
       } else if (expr is Resolver_IdentifierExpr) {
         wr.Write("[Resolver_IdentifierExpr]");  // we can get here in the middle of a debugging session
+      } else if (expr is RegionConstructExpression) {
+        var e = (RegionConstructExpression)expr;
+        wr.Write("region");
+        wr.Write("{");
+        PrintExpr(e.E, contextBindingStrength, fragileContext, isRightmost, isFollowedBySemicolon, indent, keyword);
+        wr.Write("}");
       } else {
         Contract.Assert(false); throw new cce.UnreachableException();  // unexpected expression
       }
