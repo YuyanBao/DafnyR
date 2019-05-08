@@ -1,4 +1,4 @@
-# This is the new verion of DanyR, which is adapted from Dafny (4.23.2019). It is still at the stage of active development.
+# This is the new verion of DanyR, which is adapted from Dafny (4/23/2019). It is still at the stage of active development.
 
 # DafnyR
 DafnyR is an experimental tool for sequential program specification and verification. It is a variant of Dafny and is inspired by region logic. DafnyR is built on a fine-grained region logic and allows one to use several styles of specifying the frame properties in sequential programs: dynamic frames, region logic and separation logic.
