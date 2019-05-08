@@ -453,8 +453,11 @@ namespace Microsoft.Dafny
       } else if (expr is NegationExpression) {
         var e = (NegationExpression)expr;
         return new NegationExpression(Tok(e.tok), CloneExpr(e.E));
-
-      } else {
+        } else if (expr is RegionConstructExpression) {
+            var e = (RegionConstructExpression)expr;
+            return new RegionConstructExpression(Tok(e.tok), CloneExpr(e.E));
+        
+        } else {
         Contract.Assert(false); throw new cce.UnreachableException();  // unexpected expression
       }
     }

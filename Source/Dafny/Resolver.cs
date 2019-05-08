@@ -3188,6 +3188,12 @@ namespace Microsoft.Dafny {
             Contract.Requires(msg != null);  // expected to have a {0} part
             ConstrainSubtypeRelation(Type.Bool, e.Type, e, msg, e.Type);
         }
+
+        private void ConstrainTypeExprRegion(Expression e, string msg) {
+            Contract.Requires(e != null);
+            Contract.Requires(msg != null);
+            ConstrainSubtypeRelation(Type.Region, e.Type, e, msg, e.Type);
+        }
         private bool ConstrainSubtypeRelation(Type super, Type sub, IToken tok, string msg, params object[] msgArgs) {
             Contract.Requires(sub != null);
             Contract.Requires(super != null);
@@ -3780,6 +3786,7 @@ namespace Microsoft.Dafny {
             switch (TypeProxy.GetFamily(super)) {
                 case TypeProxy.Family.Bool:
                 case TypeProxy.Family.Char:
+                case TypeProxy.Family.Region:
                 case TypeProxy.Family.IntLike:
                 case TypeProxy.Family.RealLike:
                 case TypeProxy.Family.Ordinal:
@@ -3912,10 +3919,10 @@ namespace Microsoft.Dafny {
                         satisfied = t.IsRefType && !t.IsNonNullRefType;
                         break;
                     case "Orderable_Lt":
-                        satisfied = t.IsNumericBased() || t.IsBitVectorType || t.IsBigOrdinalType || t.IsCharType || t is SeqType || t is SetType || t is MultiSetType;
+                        satisfied = t.IsNumericBased() || t.IsBitVectorType || t.IsBigOrdinalType || t.IsCharType || t.IsRegionType || t is SeqType || t is SetType || t is MultiSetType;
                         break;
                     case "Orderable_Gt":
-                        satisfied = t.IsNumericBased() || t.IsBitVectorType || t.IsBigOrdinalType || t.IsCharType || t is SetType || t is MultiSetType;
+                        satisfied = t.IsNumericBased() || t.IsBitVectorType || t.IsBigOrdinalType || t.IsCharType || t.IsRegionType || t is SetType || t is MultiSetType;
                         break;
                     case "RankOrderable": {
                         var u = Types[1].NormalizeExpand();
@@ -3926,10 +3933,10 @@ namespace Microsoft.Dafny {
                         break;
                     }
                     case "Plussable":
-                        satisfied = t.IsNumericBased() || t.IsBitVectorType || t.IsBigOrdinalType || t.IsCharType || t is SeqType || t is SetType || t is MultiSetType;
+                        satisfied = t.IsNumericBased() || t.IsBitVectorType || t.IsBigOrdinalType || t.IsCharType || t.IsRegionType || t is SeqType || t is SetType || t is MultiSetType;
                         break;
                     case "Minusable":
-                        satisfied = t.IsNumericBased() || t.IsBitVectorType || t.IsBigOrdinalType || t.IsCharType || t is SetType || t is MultiSetType;
+                        satisfied = t.IsNumericBased() || t.IsBitVectorType || t.IsBigOrdinalType || t.IsCharType || t.IsRegionType || t is SetType || t is MultiSetType;
                         break;
                     case "Mullable":
                         satisfied = t.IsNumericBased() || t.IsBitVectorType || t is SetType || t is MultiSetType;
@@ -3971,7 +3978,7 @@ namespace Microsoft.Dafny {
                         satisfied = (t is SetType && ((SetType)t).Finite) || t is MultiSetType || t is SeqType || (t is MapType && ((MapType)t).Finite);
                         break;
                     case "Disjointable":
-                        satisfied = t is SetType || t is MultiSetType || t is MapType;
+                        satisfied = t is SetType || t is MultiSetType || t is MapType || t is RegionType;
                         break;
                     case "MultiSetConvertible":
                         satisfied = (t is SetType && ((SetType)t).Finite) || t is SeqType;
@@ -4228,6 +4235,9 @@ namespace Microsoft.Dafny {
                         if (t is TypeProxy) {
                             return false;  // there is not enough information
                         }
+                        if (t is RegionType) { // allow region expression to be used in the fresh condition
+                            return true;
+                        }
                         satisfied = t.IsRefType;
                         break;
                     }
@@ -4253,6 +4263,9 @@ namespace Microsoft.Dafny {
                         if (t.IsRefType) {
                             resolver.ConstrainSubtypeRelation_Equal(u, t, errorMsg);
                             convertedIntoOtherTypeConstraints = true;
+                            return true;
+                        }
+                        if (t is RegionType) { // allow region expression to be used in the frame
                             return true;
                         }
                         satisfied = false;
@@ -4283,6 +4296,9 @@ namespace Microsoft.Dafny {
                         if (t.IsRefType) {
                             resolver.ConstrainSubtypeRelation_Equal(u, t, errorMsg);
                             convertedIntoOtherTypeConstraints = true;
+                            return true;
+                        }
+                        if (t is RegionType) { // allow region expression to be used in the frame
                             return true;
                         }
                         satisfied = false;
@@ -4321,6 +4337,7 @@ namespace Microsoft.Dafny {
                 switch (TypeProxy.GetFamily(t)) {
                     case TypeProxy.Family.Bool:
                     case TypeProxy.Family.Char:
+                    case TypeProxy.Family.Region:
                     case TypeProxy.Family.IntLike:
                     case TypeProxy.Family.RealLike:
                     case TypeProxy.Family.Ordinal:
@@ -14239,6 +14256,8 @@ namespace Microsoft.Dafny {
                 bounds.Add(new ComprehensionExpr.BoolBoundedPool());
             } else if (bv.Type.IsCharType) {
                 bounds.Add(new ComprehensionExpr.CharBoundedPool());
+            } else if (bv.Type.IsRegionType) {
+                bounds.Add(new ComprehensionExpr.RegionBoundedPool());
             } else if (bv.Type.IsDatatype && bv.Type.AsDatatype.HasFinitePossibleValues) {
                 bounds.Add(new ComprehensionExpr.DatatypeBoundedPool(bv.Type.AsIndDatatype));
             } else if (bv.Type.IsNumericBased(Type.NumericPersuation.Int)) {
@@ -14905,6 +14924,8 @@ namespace Microsoft.Dafny {
                         return BinaryExpr.ResolvedOpcode.Intersection;
                     } else if (operandType is MultiSetType) {
                         return BinaryExpr.ResolvedOpcode.MultiSetIntersection;
+                    } else if (operandType is RegionType) {
+                        return BinaryExpr.ResolvedOpcode.SepConj;
                     } else {
                         return BinaryExpr.ResolvedOpcode.Mul;
                     }

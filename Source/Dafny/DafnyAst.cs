@@ -732,6 +732,8 @@ namespace Microsoft.Dafny
         public static readonly CharType Char = new CharType();
         public static readonly IntType Int = new IntType();
         public static readonly RealType Real = new RealType();
+        public static readonly RegionType Region = new RegionType();
+
         public static Type Nat() { return new UserDefinedType(Token.NoToken, "nat", null); }  // note, this returns an unresolved type
         public static Type String() { return new UserDefinedType(Token.NoToken, "string", null); }  // note, this returns an unresolved type
         public static readonly BigOrdinalType BigOrdinal = new BigOrdinalType();
@@ -980,7 +982,7 @@ namespace Microsoft.Dafny
 
         public bool HasFinitePossibleValues {
             get {
-                if (IsBoolType || IsCharType || IsRefType)
+                if (IsBoolType || IsCharType || IsRefType || IsRegionType)
                 {
                     return true;
                 }
@@ -1561,8 +1563,9 @@ namespace Microsoft.Dafny
             else if (super is RealType)
             {
                 return sub is RealType;
-            }
-            else if (super is BitvectorType)
+            } else if (super is RegionType) {
+                return sub is RegionType;
+            } else if (super is BitvectorType)
             {
                 var bitvectorSuper = (BitvectorType)super;
                 var bitvectorSub = sub as BitvectorType;
@@ -1964,7 +1967,7 @@ namespace Microsoft.Dafny
             {
                 return a.IsNumericBased(NumericPersuation.Int) || a.IsBigOrdinalType || a.IsBitVectorType ? a : null;
             }
-            else if (a.IsBoolType || a.IsCharType || a.IsBitVectorType || a.IsBigOrdinalType || a.IsTypeParameter || a.IsInternalTypeSynonym || a is TypeProxy)
+            else if (a.IsBoolType || a.IsCharType || a.IsRegionType || a.IsBitVectorType || a.IsBigOrdinalType || a.IsTypeParameter || a.IsInternalTypeSynonym || a is TypeProxy)
             {
                 return a.Equals(b) ? a : null;
             }
@@ -2275,7 +2278,7 @@ namespace Microsoft.Dafny
             {
                 return a.IsNumericBased(NumericPersuation.Int) || a.IsBigOrdinalType || a.IsBitVectorType ? a : null;
             }
-            else if (a.IsBoolType || a.IsCharType || a.IsBigOrdinalType || a.IsTypeParameter || a.IsInternalTypeSynonym || a is TypeProxy)
+            else if (a.IsBoolType || a.IsCharType || a.IsRegionType ||a.IsBigOrdinalType || a.IsTypeParameter || a.IsInternalTypeSynonym || a is TypeProxy)
             {
                 return a.Equals(b) ? a : null;
             }
@@ -3455,7 +3458,7 @@ namespace Microsoft.Dafny
             SubtypeConstraints.Add(c);
         }
 
-        public enum Family { Unknown, Bool, Char, IntLike, RealLike, Ordinal, BitVector, ValueType, Ref, Opaque }
+        public enum Family { Unknown, Bool, Char, IntLike, RealLike, Ordinal, BitVector, ValueType, Ref, Opaque, Region }
         public Family family = Family.Unknown;
         public static Family GetFamily(Type t)
         {
@@ -3499,6 +3502,9 @@ namespace Microsoft.Dafny
             else if (t is TypeProxy)
             {
                 return ((TypeProxy)t).family;
+            }
+            else if (t is RegionType) {
+                return Family.Region;
             }
             else
             {
@@ -11292,6 +11298,7 @@ namespace Microsoft.Dafny
             /// 4: IntBoundedPool with one bound
             /// 5: IntBoundedPool with both bounds
             /// 5: CharBoundedPool
+            /// 5: RegionBoundedPool
             /// 
             /// 8: DatatypeBoundedPool
             /// 
@@ -11402,6 +11409,11 @@ namespace Microsoft.Dafny
         }
         public class CharBoundedPool : BoundedPool
         {
+            public override PoolVirtues Virtues => PoolVirtues.Finite | PoolVirtues.Enumerable | PoolVirtues.IndependentOfAlloc | PoolVirtues.IndependentOfAlloc_or_ExplicitAlloc;
+            public override int Preference() => 5;
+        }
+
+        public class RegionBoundedPool : BoundedPool {
             public override PoolVirtues Virtues => PoolVirtues.Finite | PoolVirtues.Enumerable | PoolVirtues.IndependentOfAlloc | PoolVirtues.IndependentOfAlloc_or_ExplicitAlloc;
             public override int Preference() => 5;
         }
