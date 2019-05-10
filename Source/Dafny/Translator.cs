@@ -226,7 +226,6 @@ namespace Microsoft.Dafny {
             public readonly Bpl.Type CharType;
             public readonly Bpl.Type RefType;
             public readonly Bpl.Type BoxType;
-            public readonly Bpl.Type RegionType;
             public Bpl.Type BigOrdinalType {
                 get { return BoxType; }
             }
@@ -5235,11 +5234,13 @@ namespace Microsoft.Dafny {
             Bpl.LocalVariable frame = new Bpl.LocalVariable(tok, new Bpl.TypedIdent(tok, name ?? theFrame.Name, theFrame.Type));
             localVariables.Add(frame);
 
+            /* TODO: deal with footprint later
             // Declare a local variable $_FootPrint: RegionType
             Bpl.IdentifierExpr theFootPrint = etran.TheFootPrint(tok);  // this is a throw-away expression, used only to extract the type of the $_FootPrint variable
             Contract.Assert(theFootPrint.Type != null);  // follows from the postcondition of TheFootPrint
             Bpl.LocalVariable footprint = new Bpl.LocalVariable(tok, new Bpl.TypedIdent(tok, footprintName ?? theFootPrint.Name, theFootPrint.Type));
             localVariables.Add(footprint);
+            */
 
             // $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && $Heap[$o,alloc] ==> ($o,$f) in Modifies/Reads-Clause);
             // $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null                    ==> ($o,$f) in Modifies/Reads-Clause);
@@ -5250,11 +5251,12 @@ namespace Microsoft.Dafny {
             Bpl.IdentifierExpr f = new Bpl.IdentifierExpr(tok, fVar);
             Bpl.Expr oNotNull = Bpl.Expr.Neq(o, predef.Null);
             Bpl.Expr ante = Bpl.Expr.And(oNotNull, etran.IsAlloced(tok, o));
-            // Yuyan: relace InRWClause with InRWRegionClause
-            // Bpl.Expr consequent = InRWClause(tok, o, f, frameClause, etran, null, null);
-            Bpl.Expr footprintVal = InRWRegionClause(tok, frameClause, etran, null, null);
-
-            Bpl.Expr consequent;
+            Bpl.Expr consequent = InRWClause(tok, o, f, frameClause, etran, null, null);
+                       
+            /* for region
+             // Yuyan: relace InRWClause with InRWRegionClause
+             Bpl.Expr footprintVal = InRWRegionClause(tok, frameClause, etran, null, null);
+              Bpl.Expr consequent;
             if (footprintVal == Bpl.Expr.True) {
                 consequent = footprintVal;
             } else {
@@ -5263,7 +5265,7 @@ namespace Microsoft.Dafny {
 
                 consequent = Bpl.Expr.Select(ftp, o, f);
             }
-
+            */
             Bpl.Expr lambda = new Bpl.LambdaExpr(tok, new List<TypeVariable> { alpha }, new List<Variable> { oVar, fVar }, null,
                                                  Bpl.Expr.Imp(ante, consequent));
 
@@ -5318,6 +5320,8 @@ namespace Microsoft.Dafny {
         ///          _module._default.valid#footprint($heap, formals...)[o, f] <==>
         ///          the function's frame[o, f]
         /// </summary>
+        
+        /* Yuyan
         void AddFootprintAxiom(Function f) {
             Contract.Requires(f != null);
 
@@ -5375,6 +5379,7 @@ namespace Microsoft.Dafny {
             sink.TopLevelDeclarations.Add(new Bpl.Axiom(f.tok, ax, axiomComment));
 
         }
+        */
 
         /// <summary>
         /// Generates:
@@ -5648,15 +5653,16 @@ namespace Microsoft.Dafny {
                             union = FunctionCall(e.tok, BuiltinFunction.RegionUnion, null, union, regionlst);
                         }
                     }
-                } else if (e is IdentifierExpr) {
+                } /*else if (e is IdentifierExpr) {
                     IdentifierExpr ie = (IdentifierExpr)e;
                     if (ie.Resolved.Type is RegionType) {
-                        Bpl.LocalVariable lv = new LocalVariable(ie.tok, new Bpl.TypedIdent(ie.tok, ie.Var.UniqueName, TrType(ie.Resolved.Type)));
+                        Bpl.LocalVariable lv = new LocalVariable(ie.tok, ie.tok, ie.Name, new Bpl.TypedIdent(ie.tok, ie.Var.UniqueName, etran.TrType(ie.Type)), false);
                         Bpl.IdentifierExpr bie = new Bpl.IdentifierExpr(ie.tok, lv);
                         union = FunctionCall(e.tok, BuiltinFunction.RegionUnion, null, union, bie);
                     }
 
-                } else if (e is IdentifierSequence) {
+                } */
+                /*else if (e is IdentifierSequence) {
                     IdentifierSequence ise = (IdentifierSequence)e;
                     if (ise.Resolved is IdentifierExpr) {
                         IdentifierExpr ie = (IdentifierExpr)ise.Resolved;
@@ -5666,7 +5672,9 @@ namespace Microsoft.Dafny {
                             union = FunctionCall(e.tok, BuiltinFunction.RegionUnion, null, union, bie);
                         }
                     }
-                } else if (e is WildcardExpr) {
+                }
+                */
+                else if (e is WildcardExpr) {
                     union = Bpl.Expr.True; // stop translating other expressions
                     break;
                 } else if (e is RegionFilterExpression) {
@@ -12268,10 +12276,6 @@ namespace Microsoft.Dafny {
                 } else if (ty0 is SeqType) {
                     b0 = FunctionCall(tok, BuiltinFunction.SeqRank, null, e0);
                     b1 = FunctionCall(tok, BuiltinFunction.SeqRank, null, e1);
-                } else if (ty is RegionType) { // Yuyan
-                    eq = FunctionCall(tok, BuiltinFunction.RegionEqual, null, e0, e1);
-                    less = etran.ProperSubregion(tok, e0, e1);
-                    atmost = FunctionCall(tok, BuiltinFunction.RegionSubRegion, null, e0, e1);
                 } else if (ty0.IsDatatype) {
                     b0 = FunctionCall(tok, BuiltinFunction.DtRank, null, e0);
                     b1 = FunctionCall(tok, BuiltinFunction.DtRank, null, e1);
@@ -12286,6 +12290,10 @@ namespace Microsoft.Dafny {
                     atmost = Bpl.Expr.And(Bpl.Expr.Le(Bpl.Expr.Literal(0), b0), atmost);
                 }
 
+            } else if (ty0 is RegionType) { // Yuyan
+                eq = FunctionCall(tok, BuiltinFunction.RegionEqual, null, e0, e1);
+                less = ProperSubregion(tok, e0, e1);
+                atmost = FunctionCall(tok, BuiltinFunction.RegionSubRegion, null, e0, e1);
             } else if (ty0.IsNumericBased(Type.NumericPersuation.Real)) {
                 eq = Bpl.Expr.Eq(e0, e1);
                 less = Bpl.Expr.Le(e0, Bpl.Expr.Sub(e1, Bpl.Expr.Literal(Basetypes.BigDec.FromInt(1))));
@@ -16485,6 +16493,18 @@ namespace Microsoft.Dafny {
             return Bpl.Expr.Binary(tok, BinaryOperator.Opcode.And,
               FunctionCall(tok, BuiltinFunction.SetSubset, null, e0, e1),
               Bpl.Expr.Not(FunctionCall(tok, BuiltinFunction.SetSubset, null, e1, e0)));
+        }
+
+        // Yuyan
+        public Bpl.Expr ProperSubregion(IToken tok, Bpl.Expr e0, Bpl.Expr e1) {
+            Contract.Requires(tok != null);
+            Contract.Requires(e0 != null);
+            Contract.Requires(e1 != null);
+            Contract.Ensures(Contract.Result<Bpl.Expr>() != null);
+
+            return Bpl.Expr.And(
+              FunctionCall(tok, BuiltinFunction.RegionSubRegion, null, e0, e1),
+              Bpl.Expr.Not(FunctionCall(tok, BuiltinFunction.RegionSubRegion, null, e1, e0)));
         }
         public Bpl.Expr ProperMultiset(IToken tok, Bpl.Expr e0, Bpl.Expr e1) {
             Contract.Requires(tok != null);
