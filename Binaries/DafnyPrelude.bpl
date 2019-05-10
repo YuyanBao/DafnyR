@@ -1359,3 +1359,131 @@ axiom (forall x, y, z: int ::
 #endif
 
 // -------------------------------------------------------------------------
+// ---------------------------------------------------------------
+// -- Axiomatization of region -------------------------------------
+// ---------------------------------------------------------------
+
+type RegionType = <alpha>[ref,Field alpha]bool;
+
+
+function Region#Empty() : RegionType;
+axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Empty()[o, f] } 
+	!Region#Empty()[o, f]);
+
+function Region#Singleton<alpha>(o: ref, f: Field alpha) : RegionType;
+axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Singleton(o, f) } 
+	o != null && dtype(o) == DeclType(f) ==> Region#Singleton(o, f)[o, f]);
+//axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Singleton(o, f) } 
+//	o == null || dtype(o) != DeclType(f) ==> Region#Singleton(o, f) == Region#Empty());	
+axiom (forall<alpha, beta> o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#Singleton(o, f)[o', f'] } 
+	Region#Singleton(o, f)[o', f'] <==> o == o' && f == f' && dtype(o) == DeclType(f));
+	
+function Region#UnionOne<alpha>(r: RegionType, o: ref, f: Field alpha) : RegionType;
+axiom (forall<alpha,beta> r: RegionType, o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#UnionOne(r, o, f)[o', f'] } 
+	Region#UnionOne(r, o, f)[o', f'] <==> (o == o' && f == f') || r[o', f']);
+axiom (forall<alpha> r: RegionType, o: ref, f: Field alpha :: { Region#UnionOne(r, o, f) } 
+	Region#UnionOne(r, o, f)[o, f]);
+axiom (forall<alpha,beta> r: RegionType, o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#UnionOne(r, o, f), r[o', f'] } 
+	r[o', f'] ==> Region#UnionOne(r, o, f)[o', f']);
+
+function Region#Union(r1: RegionType, r2: RegionType) : RegionType;
+axiom (forall<alpha> r1: RegionType, r2: RegionType, o: ref, f: Field alpha :: { Region#Union(r1, r2)[o, f] } 
+	Region#Union(r1, r2)[o, f] <==> r1[o, f] || r2[o, f]);
+axiom (forall<alpha> r1: RegionType, r2: RegionType, o: ref, f: Field alpha :: { Region#Union(r1, r2), r1[o, f] } 
+	r1[o, f] ==> Region#Union(r1, r2)[o, f]);
+axiom (forall<alpha> r1: RegionType, r2: RegionType, o: ref, f: Field alpha :: { Region#Union(r1, r2), r2[o, f] } 
+	r2[o, f] ==> Region#Union(r1, r2)[o, f]);
+axiom (forall r1: RegionType, r2: RegionType :: { Region#Union(r1, r2) } 
+	Region#Disjoint(r1, r2) ==> Region#Difference(Region#Union(r1, r2), r1) == r2 && Region#Difference(Region#Union(r1, r2), r2) == r1);
+
+function Region#Intersection(r1: RegionType, r2: RegionType) : RegionType;
+axiom (forall<alpha> r1: RegionType, r2: RegionType, o: ref, f: Field alpha :: { Region#Intersection(r1, r2)[o, f] } 
+	Region#Intersection(r1, r2)[o, f] <==> r1[o, f] && r2[o, f]);
+axiom (forall r1: RegionType, r2: RegionType :: { Region#Union(Region#Union(r1, r2), r2) } 
+	Region#Union(Region#Union(r1, r2), r2) == Region#Union(r1, r2));
+axiom (forall r1: RegionType, r2: RegionType :: { Region#Union(r1, Region#Union(r1, r2)) } 
+	Region#Union(r1, Region#Union(r1, r2)) == Region#Union(r1, r2));
+axiom (forall r1: RegionType, r2: RegionType :: { Region#Intersection(Region#Intersection(r1, r2), r2) } 
+	Region#Intersection(Region#Intersection(r1, r2), r2) == Region#Intersection(r1, r2));
+axiom (forall r1: RegionType, r2: RegionType :: { Region#Intersection(r1, Region#Intersection(r1, r2)) } 
+	Region#Intersection(r1, Region#Intersection(r2, r2)) == Region#Intersection(r1, r2));
+
+function Region#Contains<alpha>(o: ref, f: Field alpha, r: RegionType) : bool;
+axiom (forall<alpha> r: RegionType, o: ref, f: Field alpha :: { Region#Contains(o, f, r) } 
+	Region#Contains(o, f, r) <==> (exists o': ref, f': Field alpha :: { Region#SubRegion(Region#Singleton(o', f'), r) } o == o' && f == f'));
+
+function Region#SubRegion(r1: RegionType, r2: RegionType) : bool;
+axiom (forall r1: RegionType, r2: RegionType :: { Region#SubRegion(r1, r2) } 
+	Region#SubRegion(r1, r2) <==> (forall<alpha> o: ref, f: Field alpha :: { r1[o, f] } { r2[o, f] } r1[o, f] ==> r2[o, f]));
+
+function Region#Difference(r1: RegionType, r2: RegionType) : RegionType;
+axiom (forall<alpha> o: ref, f: Field alpha, r1: RegionType, r2: RegionType :: { Region#Difference(r1, r2)[o, f] } 
+	Region#Difference(r1, r2)[o, f] <==> r1[o, f] && !r2[o, f]);
+axiom (forall<alpha> o: ref, f: Field alpha, r1: RegionType, r2: RegionType :: { Region#Difference(r1, r2), r2[o, f] } 
+	r2[o, f] ==> !Region#Difference(r1, r2)[o, f]);
+
+function Region#Disjoint(r1: RegionType, r2: RegionType) : bool;
+axiom (forall r1: RegionType, r2: RegionType :: { Region#Disjoint(r1, r2) } 
+	Region#Disjoint(r1, r2) <==> (forall<alpha> o: ref, f: Field alpha :: { r1[o, f] } { r2[o, f] } !r1[o, f] || !r2[o, f]));
+
+function Region#Equals(r1: RegionType, r2: RegionType) : bool;
+axiom (forall r1: RegionType, r2: RegionType :: { Region#Equals(r1, r2) } 
+	Region#Equals(r1, r2) <==> (forall<alpha> o: ref, f: Field alpha :: { r1[o, f] } { r2[o, f] } r1[o, f] <==> r2[o, f]));
+axiom (forall r1: RegionType, r2: RegionType :: { Region#Equals(r1, r2) } 
+	Region#Equals(r1, r2) ==> r1 == r2);
+
+function Region#RegionFromField<alpha>(r: RegionType, o: ref, f: Field alpha) : RegionType;
+axiom (forall<alpha> r: RegionType, o: ref, f: Field alpha :: { Region#RegionFromField(r, o, f) } 
+	Region#RegionFromField(r, o, f) == Region#Singleton(o, f));
+
+function Region#RegionFromRef(r: RegionType, o: ref) : RegionType;
+axiom (forall r: RegionType, o: ref :: { Region#RegionFromRef(r, o) } 
+	(forall<alpha> o': ref, f: Field alpha :: r[o', f] && o == o' <==> Region#RegionFromRef(r, o)[o', f]));
+
+function Region#RegionFromClassName(r: RegionType, c: ClassName) : RegionType;
+axiom (forall r: RegionType, c: ClassName :: { Region#RegionFromClassName(r, c) } 
+	(forall<alpha> o: ref, f: Field alpha :: r[o, f] && dtype(o) == c <==> Region#RegionFromClassName(r, c)[o, f]));
+
+function Region#RegionFromClassNameAndField<alpha>(r: RegionType, c: ClassName, f: Field alpha) : RegionType;
+axiom (forall<alpha> r: RegionType, c: ClassName, f: Field alpha :: { Region#RegionFromClassNameAndField(r, c, f) } 
+	(forall<beta> o: ref, f': Field beta :: r[o, f'] && dtype(o) == c && f == f' <==> Region#RegionFromClassNameAndField(r, c, f)[o, f']));
+
+function Region#Size(RegionType) : int;
+axiom (forall r: RegionType :: { Region#Size(r) } r == Region#Empty() <==> Region#Size(r) == 0);
+axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Size(Region#Singleton(o, f)) } 
+	 Region#Size(Region#Singleton(o, f)) == 1);
+axiom (forall<alpha> o: ref, f: Field alpha, r: RegionType :: { Region#Size(Region#Union(Region#Singleton(o, f), r)) }
+    Region#Size(Region#Union(Region#Singleton(o, f), r)) == 1 + Region#Size(r));
+//axiom (forall r: RegionType :: { Region#Size(r) } 
+//	(forall<alpha> o: ref, f: Field alpha :: r[o, f] <==> Region#Size(r) == 1 + Region#Size(Region#Difference(r, Region#Singleton(o, f)))));
+
+
+
+// ---------------------------------------------------------------
+// -- The region -------------------------------------
+// ---------------------------------------------------------------
+
+function ObjectToRegion(ref) : RegionType;
+/*
+axiom (forall obj: ref, h: HeapType :: { ObjectToRegion(obj, h) } 
+   (forall<alpha> o: ref, f: Field alpha :: obj != null && h[obj, alloc] && ObjectToRegion(obj, h)[o, f] <==> 
+      o == obj && f != alloc && DeclType(f) == dtype(obj) && FieldOfDecl(dtype(obj), DeclName(f)) == f));*/
+/*axiom (forall obj: ref, h: HeapType :: { ObjectToRegion(obj, h) } 
+   (forall<alpha> o: ref, f: Field alpha :: $IsGoodHeap(h) && ObjectToRegion(obj, h)[o, f] <==>  o != null && h[o, alloc] && o == obj && 
+       DeclType(f) == dtype(obj) && f != alloc));
+axiom (forall<alpha> o: ref, f: Field alpha, obj: ref, h: HeapType :: { ObjectToRegion(obj, h)[o, f] } 
+   $IsGoodHeap(h) && obj != null && ObjectToRegion(obj, h)[o, f] ==> h[o, alloc] && o == obj && dtype(obj) == DeclType(f) && f != alloc);
+*/
+/*
+function {:inline true} readRegion(H: HeapType, r: ref, nxt: Field ref) : RegionType
+{
+	List(r, H, nxt)
+}
+
+function List(ref, HeapType, Field ref): RegionType;
+axiom (forall<beta> root: ref, nxt: Field ref, h: HeapType, o: ref, f: Field beta :: { List(root, h, nxt)[o, f] }
+	root == null ==> !(List(root, h, nxt)[o, f]));
+
+axiom (forall<alpha> root: ref, nxt: Field ref, h: HeapType, o: ref, f: Field alpha :: { List(root, h, nxt)[o, f] }
+	root != null ==> (h[root, rthis][o, f] || List(read(h, o, nxt), h, nxt)[o, f]));
+*/

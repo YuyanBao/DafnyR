@@ -14410,7 +14410,6 @@ namespace Microsoft.Dafny {
                         s = MaybeLit(s, predef.BoxType);
                     }
                     return s;
-
                 } else if (expr is MapDisplayExpr) {
                     MapDisplayExpr e = (MapDisplayExpr)expr;
                     Bpl.Type maptype = predef.MapType(expr.tok, e.Finite, predef.BoxType, predef.BoxType);
@@ -14429,7 +14428,16 @@ namespace Microsoft.Dafny {
                         s = MaybeLit(s, predef.BoxType);
                     }
                     return s;
-
+                }
+                else if (expr is RegionConstructExpression) {  //Yuyan
+                    RegionConstructExpression rce = (RegionConstructExpression)expr;
+                    return translator.TrRegionList(rce.tok, rce.RegionList, this, null, null);
+                //} else if (expr is FootprintExpression) { // Yuyan
+                //    FootprintExpression fe = (FootprintExpression)expr;
+                //    return TrFootprint(fe.tok, fe.Footprint, this);
+                }else if (expr is RegionFilterExpression){ // Yuyan
+                    RegionFilterExpression rfe = (RegionFilterExpression)expr;
+                    return translator.TrRegionFilterExpression(rfe, this);
                 } else if (expr is MemberSelectExpr) {
                     var e = (MemberSelectExpr)expr;
                     return e.MemberSelectCase(
@@ -16362,6 +16370,71 @@ namespace Microsoft.Dafny {
                     Contract.Assert(args.Length == 2);
                     Contract.Assert(typeInstantiation == null);
                     return FunctionCall(tok, "IMap#Equal", Bpl.Type.Bool, args);
+
+                /*------------------Yuyan region functions begins--------------------------------*/
+                // Yuyan added
+                case BuiltinFunction.RegionEmpty: {
+                    Contract.Assert(args.Length == 0);
+                    Bpl.Type resultType = predef.RegionType(tok);
+                    return Bpl.Expr.CoerceType(tok, FunctionCall(tok, "Region#Empty", resultType, args), resultType);
+                }
+
+                case BuiltinFunction.RegionUnionOne:
+                    Contract.Assert(args.Length == 3);
+                    return FunctionCall(tok, "Region#UnionOne", predef.RegionType(tok), args);
+                case BuiltinFunction.RegionUnion:
+                    Contract.Assert(args.Length == 2);
+                    return FunctionCall(tok, "Region#Union", predef.RegionType(tok), args);
+                case BuiltinFunction.RegionContains:
+                    Contract.Assert(args.Length == 3);
+                    return FunctionCall(tok, "Region#Contains", Bpl.Type.Bool, args);
+                case BuiltinFunction.RegionSubRegion:
+                    Contract.Assert(args.Length == 2);
+                    return FunctionCall(tok, "Region#SubRegion", Bpl.Type.Bool, args);
+                case BuiltinFunction.RegionSingleton:
+                    Contract.Assert(args.Length == 2);
+                    return FunctionCall(tok, "Region#Singleton", predef.RegionType(tok), args);
+                case BuiltinFunction.RegionFromRef:
+                    Contract.Assert(args.Length == 2);
+                    return FunctionCall(tok, "Region#RegionFromRef", predef.RegionType(tok), args);
+                case BuiltinFunction.RegionFromField:
+                    Contract.Assert(args.Length == 3);
+                    return FunctionCall(tok, "Region#RegionFromField", predef.RegionType(tok), args);
+                case BuiltinFunction.RegionFromClassName:
+                    Contract.Assert(args.Length == 2);
+                    return FunctionCall(tok, "Region#RegionFromClassName", predef.RegionType(tok), args);
+                case BuiltinFunction.RegionFromClassNameAndField:
+                    Contract.Assert(args.Length == 3);
+                    return FunctionCall(tok, "Region#RegionFromClassNameAndField", predef.RegionType(tok), args);
+                case BuiltinFunction.RegionDisjoint:
+                    Contract.Assert(args.Length == 2);
+                    return FunctionCall(tok, "Region#Disjoint", Bpl.Type.Bool, args);
+                case BuiltinFunction.RegionDifference:
+                    Contract.Assert(args.Length == 2);
+                    return FunctionCall(tok, "Region#Difference", predef.RegionType(tok), args);
+                case BuiltinFunction.RegionEqual:
+                    Contract.Assert(args.Length == 2);
+                    return FunctionCall(tok, "Region#Equals", Bpl.Type.Bool, args);
+                case BuiltinFunction.RegionIntersection:
+                    Contract.Assert(args.Length == 2);
+                    return FunctionCall(tok, "Region#Intersection", predef.RegionType(tok), args);
+                case BuiltinFunction.RegionInRegion:
+                    Contract.Assert(args.Length == 3);
+                    return FunctionCall(tok, "Region#Contains", Bpl.Type.Bool, args);
+                case BuiltinFunction.RegionSize:
+                    Contract.Assert(args.Length == 1);
+                    return FunctionCall(tok, "Region#Size", Bpl.Type.Int, args);
+
+                case BuiltinFunction.RegionOfHeap:
+                    Contract.Assert(args.Length == 1);
+                    return FunctionCall(tok, "RegionOfHeap", predef.RegionType(tok), args);
+
+                case BuiltinFunction.RegionOfRef:
+                    Contract.Assert(args.Length == 2);
+                    return FunctionCall(tok, "RegionOfRef", predef.RegionType(tok), args);
+
+
+                /*------------------Yuyan region functions ends----------------------------------*/
 
                 case BuiltinFunction.IndexField:
                     Contract.Assert(args.Length == 1);
