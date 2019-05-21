@@ -19,6 +19,7 @@ const unique TBool : Ty;
 const unique TChar : Ty;
 const unique TInt  : Ty;
 const unique TReal : Ty;
+const unique TRegion : Ty;
 const unique TORDINAL  : Ty;
 function TBitvector(int) : Ty;
 function TSet(Ty)      : Ty;
@@ -57,6 +58,7 @@ const unique TagBool     : TyTag;
 const unique TagChar     : TyTag;
 const unique TagInt      : TyTag;
 const unique TagReal     : TyTag;
+const unique TagRegion   : TyTag;
 const unique TagORDINAL  : TyTag;
 const unique TagSet      : TyTag;
 const unique TagISet     : TyTag;
@@ -70,6 +72,7 @@ axiom Tag(TBool) == TagBool;
 axiom Tag(TChar) == TagChar;
 axiom Tag(TInt) == TagInt;
 axiom Tag(TReal) == TagReal;
+axiom Tag(TRegion) == TagRegion;
 axiom Tag(TORDINAL) == TagORDINAL;
 axiom (forall t: Ty    :: { TSet(t) }      Tag(TSet(t))      == TagSet);
 axiom (forall t: Ty    :: { TISet(t) }     Tag(TISet(t))     == TagISet);
@@ -150,6 +153,9 @@ axiom (forall bx : Box ::
 axiom (forall bx : Box ::
     { $IsBox(bx, TChar) }
     ( $IsBox(bx, TChar) ==> $Box($Unbox(bx) : char) == bx && $Is($Unbox(bx) : char, TChar)));
+axiom (forall bx : Box ::
+	{ $IsBox(bx, TRegion) }
+	( $IsBox(bx, TRegion) ==> $Box($Unbox(bx) : region) == bx && $Is($Unbox(bx) : region, TRegion)));
 axiom (forall bx : Box, t : Ty ::
     { $IsBox(bx, TSet(t)) }
     ( $IsBox(bx, TSet(t)) ==> $Box($Unbox(bx) : Set Box) == bx && $Is($Unbox(bx) : Set Box, TSet(t))));
@@ -194,12 +200,14 @@ axiom(forall v : int  :: { $Is(v,TInt) }  $Is(v,TInt));
 axiom(forall v : real :: { $Is(v,TReal) } $Is(v,TReal));
 axiom(forall v : bool :: { $Is(v,TBool) } $Is(v,TBool));
 axiom(forall v : char :: { $Is(v,TChar) } $Is(v,TChar));
+axiom(forall v : region :: { $Is(v, TRegion) } $Is(v, TRegion));
 axiom(forall v : ORDINAL :: { $Is(v,TORDINAL) } $Is(v,TORDINAL));
 
 axiom(forall h : Heap, v : int  :: { $IsAlloc(v,TInt,h) }  $IsAlloc(v,TInt,h));
 axiom(forall h : Heap, v : real :: { $IsAlloc(v,TReal,h) } $IsAlloc(v,TReal,h));
 axiom(forall h : Heap, v : bool :: { $IsAlloc(v,TBool,h) } $IsAlloc(v,TBool,h));
 axiom(forall h : Heap, v : char :: { $IsAlloc(v,TChar,h) } $IsAlloc(v,TChar,h));
+axiom(forall h : Heap, v : region :: { $IsAlloc(v, TRegion, h) } $IsAlloc(v, TRegion, h));
 axiom(forall h : Heap, v : ORDINAL :: { $IsAlloc(v,TORDINAL,h) } $IsAlloc(v,TORDINAL,h));
 
 axiom (forall v: Set Box, t0: Ty :: { $Is(v, TSet(t0)) }
@@ -280,6 +288,7 @@ axiom (forall v: IMap Box Box, t0: Ty, t1: Ty, h: Heap ::
 type ClassName;
 const unique class._System.int: ClassName;
 const unique class._System.bool: ClassName;
+const unique class._System.region: ClassName;
 const unique class._System.set: ClassName;
 const unique class._System.seq: ClassName;
 const unique class._System.multiset: ClassName;
@@ -1363,14 +1372,14 @@ axiom (forall x, y, z: int ::
 // -- Axiomatization of region -------------------------------------
 // ---------------------------------------------------------------
 
-type RegionType = <alpha>[ref,Field alpha]bool;
+type region = <alpha>[ref,Field alpha]bool;
 
 
-function Region#Empty() : RegionType;
+function Region#Empty() : region;
 axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Empty()[o, f] } 
 	!Region#Empty()[o, f]);
 
-function Region#Singleton<alpha>(o: ref, f: Field alpha) : RegionType;
+function Region#Singleton<alpha>(o: ref, f: Field alpha) : region;
 axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Singleton(o, f) } 
 	o != null && dtype(o) == DeclType(f) ==> Region#Singleton(o, f)[o, f]);
 //axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Singleton(o, f) } 
@@ -1378,83 +1387,85 @@ axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Singleton(o, f) }
 axiom (forall<alpha, beta> o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#Singleton(o, f)[o', f'] } 
 	Region#Singleton(o, f)[o', f'] <==> o == o' && f == f' && dtype(o) == DeclType(f));
 	
-function Region#UnionOne<alpha>(r: RegionType, o: ref, f: Field alpha) : RegionType;
-axiom (forall<alpha,beta> r: RegionType, o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#UnionOne(r, o, f)[o', f'] } 
+function Region#UnionOne<alpha>(r: region, o: ref, f: Field alpha) : region;
+axiom (forall<alpha,beta> r: region, o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#UnionOne(r, o, f)[o', f'] } 
 	Region#UnionOne(r, o, f)[o', f'] <==> (o == o' && f == f') || r[o', f']);
-axiom (forall<alpha> r: RegionType, o: ref, f: Field alpha :: { Region#UnionOne(r, o, f) } 
+axiom (forall<alpha> r: region, o: ref, f: Field alpha :: { Region#UnionOne(r, o, f) } 
 	Region#UnionOne(r, o, f)[o, f]);
-axiom (forall<alpha,beta> r: RegionType, o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#UnionOne(r, o, f), r[o', f'] } 
+axiom (forall<alpha,beta> r: region, o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#UnionOne(r, o, f), r[o', f'] } 
 	r[o', f'] ==> Region#UnionOne(r, o, f)[o', f']);
 
-function Region#Union(r1: RegionType, r2: RegionType) : RegionType;
-axiom (forall<alpha> r1: RegionType, r2: RegionType, o: ref, f: Field alpha :: { Region#Union(r1, r2)[o, f] } 
+function Region#Union(r1: region, r2: region) : region;
+axiom (forall<alpha> r1: region, r2: region, o: ref, f: Field alpha :: { Region#Union(r1, r2)[o, f] } 
 	Region#Union(r1, r2)[o, f] <==> r1[o, f] || r2[o, f]);
-axiom (forall<alpha> r1: RegionType, r2: RegionType, o: ref, f: Field alpha :: { Region#Union(r1, r2), r1[o, f] } 
+axiom (forall<alpha> r1: region, r2: region, o: ref, f: Field alpha :: { Region#Union(r1, r2), r1[o, f] } 
 	r1[o, f] ==> Region#Union(r1, r2)[o, f]);
-axiom (forall<alpha> r1: RegionType, r2: RegionType, o: ref, f: Field alpha :: { Region#Union(r1, r2), r2[o, f] } 
+axiom (forall<alpha> r1: region, r2: region, o: ref, f: Field alpha :: { Region#Union(r1, r2), r2[o, f] } 
 	r2[o, f] ==> Region#Union(r1, r2)[o, f]);
-axiom (forall r1: RegionType, r2: RegionType :: { Region#Union(r1, r2) } 
+axiom (forall r1: region, r2: region :: { Region#Union(r1, r2) } 
 	Region#Disjoint(r1, r2) ==> Region#Difference(Region#Union(r1, r2), r1) == r2 && Region#Difference(Region#Union(r1, r2), r2) == r1);
 
-function Region#Intersection(r1: RegionType, r2: RegionType) : RegionType;
-axiom (forall<alpha> r1: RegionType, r2: RegionType, o: ref, f: Field alpha :: { Region#Intersection(r1, r2)[o, f] } 
+function Region#Intersection(r1: region, r2: region) : region;
+axiom (forall<alpha> r1: region, r2: region, o: ref, f: Field alpha :: { Region#Intersection(r1, r2)[o, f] } 
 	Region#Intersection(r1, r2)[o, f] <==> r1[o, f] && r2[o, f]);
-axiom (forall r1: RegionType, r2: RegionType :: { Region#Union(Region#Union(r1, r2), r2) } 
+axiom (forall r1: region, r2: region :: { Region#Union(Region#Union(r1, r2), r2) } 
 	Region#Union(Region#Union(r1, r2), r2) == Region#Union(r1, r2));
-axiom (forall r1: RegionType, r2: RegionType :: { Region#Union(r1, Region#Union(r1, r2)) } 
+axiom (forall r1: region, r2: region :: { Region#Union(r1, Region#Union(r1, r2)) } 
 	Region#Union(r1, Region#Union(r1, r2)) == Region#Union(r1, r2));
-axiom (forall r1: RegionType, r2: RegionType :: { Region#Intersection(Region#Intersection(r1, r2), r2) } 
+axiom (forall r1: region, r2: region :: { Region#Intersection(Region#Intersection(r1, r2), r2) } 
 	Region#Intersection(Region#Intersection(r1, r2), r2) == Region#Intersection(r1, r2));
-axiom (forall r1: RegionType, r2: RegionType :: { Region#Intersection(r1, Region#Intersection(r1, r2)) } 
+axiom (forall r1: region, r2: region :: { Region#Intersection(r1, Region#Intersection(r1, r2)) } 
 	Region#Intersection(r1, Region#Intersection(r2, r2)) == Region#Intersection(r1, r2));
 
-function Region#Contains<alpha>(o: ref, f: Field alpha, r: RegionType) : bool;
-axiom (forall<alpha> r: RegionType, o: ref, f: Field alpha :: { Region#Contains(o, f, r) } 
+function Region#Contains<alpha>(o: ref, f: Field alpha, r: region) : bool;
+axiom (forall<alpha> r: region, o: ref, f: Field alpha :: { Region#Contains(o, f, r) } 
 	Region#Contains(o, f, r) <==> (exists o': ref, f': Field alpha :: { Region#SubRegion(Region#Singleton(o', f'), r) } o == o' && f == f'));
 
-function Region#SubRegion(r1: RegionType, r2: RegionType) : bool;
-axiom (forall r1: RegionType, r2: RegionType :: { Region#SubRegion(r1, r2) } 
+function Region#SubRegion(r1: region, r2: region) : bool;
+axiom (forall r1: region, r2: region :: { Region#SubRegion(r1, r2) } 
 	Region#SubRegion(r1, r2) <==> (forall<alpha> o: ref, f: Field alpha :: { r1[o, f] } { r2[o, f] } r1[o, f] ==> r2[o, f]));
 
-function Region#Difference(r1: RegionType, r2: RegionType) : RegionType;
-axiom (forall<alpha> o: ref, f: Field alpha, r1: RegionType, r2: RegionType :: { Region#Difference(r1, r2)[o, f] } 
+function Region#Difference(r1: region, r2: region) : region;
+axiom (forall<alpha> o: ref, f: Field alpha, r1: region, r2: region :: { Region#Difference(r1, r2)[o, f] } 
 	Region#Difference(r1, r2)[o, f] <==> r1[o, f] && !r2[o, f]);
-axiom (forall<alpha> o: ref, f: Field alpha, r1: RegionType, r2: RegionType :: { Region#Difference(r1, r2), r2[o, f] } 
+axiom (forall<alpha> o: ref, f: Field alpha, r1: region, r2: region :: { Region#Difference(r1, r2), r2[o, f] } 
 	r2[o, f] ==> !Region#Difference(r1, r2)[o, f]);
 
-function Region#Disjoint(r1: RegionType, r2: RegionType) : bool;
-axiom (forall r1: RegionType, r2: RegionType :: { Region#Disjoint(r1, r2) } 
+function Region#Disjoint(r1: region, r2: region) : bool;
+axiom (forall r1: region, r2: region :: { Region#Disjoint(r1, r2) } 
 	Region#Disjoint(r1, r2) <==> (forall<alpha> o: ref, f: Field alpha :: { r1[o, f] } { r2[o, f] } !r1[o, f] || !r2[o, f]));
 
-function Region#Equals(r1: RegionType, r2: RegionType) : bool;
-axiom (forall r1: RegionType, r2: RegionType :: { Region#Equals(r1, r2) } 
+function Region#Equals(r1: region, r2: region) : bool;
+axiom (forall r1: region, r2: region :: { Region#Equals(r1, r2) } 
 	Region#Equals(r1, r2) <==> (forall<alpha> o: ref, f: Field alpha :: { r1[o, f] } { r2[o, f] } r1[o, f] <==> r2[o, f]));
-axiom (forall r1: RegionType, r2: RegionType :: { Region#Equals(r1, r2) } 
+axiom (forall r1: region, r2: region :: { Region#Equals(r1, r2) } 
 	Region#Equals(r1, r2) ==> r1 == r2);
 
-function Region#RegionFromField<alpha>(r: RegionType, o: ref, f: Field alpha) : RegionType;
-axiom (forall<alpha> r: RegionType, o: ref, f: Field alpha :: { Region#RegionFromField(r, o, f) } 
+function Region#RegionFromField<alpha>(r: region, o: ref, f: Field alpha) : region;
+axiom (forall<alpha> r: region, o: ref, f: Field alpha :: { Region#RegionFromField(r, o, f) } 
 	Region#RegionFromField(r, o, f) == Region#Singleton(o, f));
 
-function Region#RegionFromRef(r: RegionType, o: ref) : RegionType;
-axiom (forall r: RegionType, o: ref :: { Region#RegionFromRef(r, o) } 
+function Region#RegionFromRef(r: region, o: ref) : region;
+axiom (forall r: region, o: ref :: { Region#RegionFromRef(r, o) } 
 	(forall<alpha> o': ref, f: Field alpha :: r[o', f] && o == o' <==> Region#RegionFromRef(r, o)[o', f]));
 
-function Region#RegionFromClassName(r: RegionType, c: ClassName) : RegionType;
-axiom (forall r: RegionType, c: ClassName :: { Region#RegionFromClassName(r, c) } 
+/* Need to re-think about the filter
+function Region#RegionFromClassName(r: region, c: ClassName) : region;
+axiom (forall r: region, c: ClassName :: { Region#RegionFromClassName(r, c) } 
 	(forall<alpha> o: ref, f: Field alpha :: r[o, f] && dtype(o) == c <==> Region#RegionFromClassName(r, c)[o, f]));
 
-function Region#RegionFromClassNameAndField<alpha>(r: RegionType, c: ClassName, f: Field alpha) : RegionType;
-axiom (forall<alpha> r: RegionType, c: ClassName, f: Field alpha :: { Region#RegionFromClassNameAndField(r, c, f) } 
+function Region#RegionFromClassNameAndField<alpha>(r: region, c: ClassName, f: Field alpha) : region;
+axiom (forall<alpha> r: region, c: ClassName, f: Field alpha :: { Region#RegionFromClassNameAndField(r, c, f) } 
 	(forall<beta> o: ref, f': Field beta :: r[o, f'] && dtype(o) == c && f == f' <==> Region#RegionFromClassNameAndField(r, c, f)[o, f']));
+*/
 
-function Region#Size(RegionType) : int;
-axiom (forall r: RegionType :: { Region#Size(r) } r == Region#Empty() <==> Region#Size(r) == 0);
+function Region#Size(region) : int;
+axiom (forall r: region :: { Region#Size(r) } r == Region#Empty() <==> Region#Size(r) == 0);
 axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Size(Region#Singleton(o, f)) } 
 	 Region#Size(Region#Singleton(o, f)) == 1);
-axiom (forall<alpha> o: ref, f: Field alpha, r: RegionType :: { Region#Size(Region#Union(Region#Singleton(o, f), r)) }
+axiom (forall<alpha> o: ref, f: Field alpha, r: region :: { Region#Size(Region#Union(Region#Singleton(o, f), r)) }
     Region#Size(Region#Union(Region#Singleton(o, f), r)) == 1 + Region#Size(r));
-//axiom (forall r: RegionType :: { Region#Size(r) } 
+//axiom (forall r: region :: { Region#Size(r) } 
 //	(forall<alpha> o: ref, f: Field alpha :: r[o, f] <==> Region#Size(r) == 1 + Region#Size(Region#Difference(r, Region#Singleton(o, f)))));
 
 
@@ -1463,7 +1474,7 @@ axiom (forall<alpha> o: ref, f: Field alpha, r: RegionType :: { Region#Size(Regi
 // -- The region -------------------------------------
 // ---------------------------------------------------------------
 
-function ObjectToRegion(ref) : RegionType;
+function ObjectToRegion(ref) : region;
 /*
 axiom (forall obj: ref, h: HeapType :: { ObjectToRegion(obj, h) } 
    (forall<alpha> o: ref, f: Field alpha :: obj != null && h[obj, alloc] && ObjectToRegion(obj, h)[o, f] <==> 
@@ -1475,12 +1486,12 @@ axiom (forall<alpha> o: ref, f: Field alpha, obj: ref, h: HeapType :: { ObjectTo
    $IsGoodHeap(h) && obj != null && ObjectToRegion(obj, h)[o, f] ==> h[o, alloc] && o == obj && dtype(obj) == DeclType(f) && f != alloc);
 */
 /*
-function {:inline true} readRegion(H: HeapType, r: ref, nxt: Field ref) : RegionType
+function {:inline true} readRegion(H: HeapType, r: ref, nxt: Field ref) : region
 {
 	List(r, H, nxt)
 }
 
-function List(ref, HeapType, Field ref): RegionType;
+function List(ref, HeapType, Field ref): region;
 axiom (forall<beta> root: ref, nxt: Field ref, h: HeapType, o: ref, f: Field beta :: { List(root, h, nxt)[o, f] }
 	root == null ==> !(List(root, h, nxt)[o, f]));
 

@@ -547,7 +547,7 @@ namespace Microsoft.Dafny {
                         isetTypeCtor = dt;
                     } else if (dt.Name == "Bv0") {
                         bv0TypeDecl = dt;
-                    } else if (dt.Name == "RegionType") {
+                    } else if (dt.Name == "region") {
                         regionTypeCtor = dt;
                     }
                 } else if (d is Bpl.Constant) {
@@ -604,7 +604,7 @@ namespace Microsoft.Dafny {
             } else if (multiSetTypeCtor == null) {
                 Console.WriteLine("Error: Dafny prelude is missing declaration of type MultiSet");
             } else if (regionTypeCtor == null) {
-                Console.WriteLine("Error: DafnyR prelude is missing declaration of type RegionType");
+                Console.WriteLine("Error: DafnyR prelude is missing declaration of type Region");
             } else if (mapTypeCtor == null) {
                 Console.WriteLine("Error: Dafny prelude is missing declaration of type Map");
             } else if (imapTypeCtor == null) {
