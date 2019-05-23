@@ -1371,27 +1371,23 @@ axiom (forall x, y, z: int ::
 // ---------------------------------------------------------------
 // -- Axiomatization of region -------------------------------------
 // ---------------------------------------------------------------
+// TODO: need to check if o.f valid separately
 
 type region = <alpha>[ref,Field alpha]bool;
-
 
 function Region#Empty() : region;
 axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Empty()[o, f] } 
 	!Region#Empty()[o, f]);
 
-function Region#Singleton<alpha>(o: ref, f: Field alpha) : region;
+	function Region#Singleton<alpha>(o: ref, f: Field alpha) : region;
 axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Singleton(o, f) } 
-	o != null && dtype(o) == DeclType(f) ==> Region#Singleton(o, f)[o, f]);
-//axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Singleton(o, f) } 
-//	o == null || dtype(o) != DeclType(f) ==> Region#Singleton(o, f) == Region#Empty());	
-axiom (forall<alpha, beta> o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#Singleton(o, f)[o', f'] } 
-	Region#Singleton(o, f)[o', f'] <==> o == o' && f == f' && dtype(o) == DeclType(f));
-	
+	o != null ==> Region#Singleton(o, f)[o, f]);
+
 function Region#UnionOne<alpha>(r: region, o: ref, f: Field alpha) : region;
 axiom (forall<alpha,beta> r: region, o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#UnionOne(r, o, f)[o', f'] } 
-	Region#UnionOne(r, o, f)[o', f'] <==> (o == o' && f == f') || r[o', f']);
+	o != null && Region#UnionOne(r, o, f)[o', f'] <==> (o == o' && f == f') || r[o', f']);
 axiom (forall<alpha> r: region, o: ref, f: Field alpha :: { Region#UnionOne(r, o, f) } 
-	Region#UnionOne(r, o, f)[o, f]);
+	o != null && Region#UnionOne(r, o, f)[o, f]);
 axiom (forall<alpha,beta> r: region, o: ref, o': ref, f: Field alpha, f': Field beta :: { Region#UnionOne(r, o, f), r[o', f'] } 
 	r[o', f'] ==> Region#UnionOne(r, o, f)[o', f']);
 
@@ -1441,15 +1437,15 @@ axiom (forall r1: region, r2: region :: { Region#Equals(r1, r2) }
 axiom (forall r1: region, r2: region :: { Region#Equals(r1, r2) } 
 	Region#Equals(r1, r2) ==> r1 == r2);
 
-function Region#RegionFromField<alpha>(r: region, o: ref, f: Field alpha) : region;
-axiom (forall<alpha> r: region, o: ref, f: Field alpha :: { Region#RegionFromField(r, o, f) } 
-	Region#RegionFromField(r, o, f) == Region#Singleton(o, f));
-
 function Region#RegionFromRef(r: region, o: ref) : region;
 axiom (forall r: region, o: ref :: { Region#RegionFromRef(r, o) } 
 	(forall<alpha> o': ref, f: Field alpha :: r[o', f] && o == o' <==> Region#RegionFromRef(r, o)[o', f]));
 
-/* Need to re-think about the filter
+/* TODO: need to fix the filter
+function Region#RegionFromField<alpha>(r: region, o: ref, f: Field alpha) : region;
+axiom (forall<alpha> r: region, o: ref, f: Field alpha :: { Region#RegionFromField(r, o, f) } 
+	Region#RegionFromField(r, o, f) == Region#Singleton(o, f));
+
 function Region#RegionFromClassName(r: region, c: ClassName) : region;
 axiom (forall r: region, c: ClassName :: { Region#RegionFromClassName(r, c) } 
 	(forall<alpha> o: ref, f: Field alpha :: r[o, f] && dtype(o) == c <==> Region#RegionFromClassName(r, c)[o, f]));
@@ -1457,44 +1453,4 @@ axiom (forall r: region, c: ClassName :: { Region#RegionFromClassName(r, c) }
 function Region#RegionFromClassNameAndField<alpha>(r: region, c: ClassName, f: Field alpha) : region;
 axiom (forall<alpha> r: region, c: ClassName, f: Field alpha :: { Region#RegionFromClassNameAndField(r, c, f) } 
 	(forall<beta> o: ref, f': Field beta :: r[o, f'] && dtype(o) == c && f == f' <==> Region#RegionFromClassNameAndField(r, c, f)[o, f']));
-*/
-
-function Region#Size(region) : int;
-axiom (forall r: region :: { Region#Size(r) } r == Region#Empty() <==> Region#Size(r) == 0);
-axiom (forall<alpha> o: ref, f: Field alpha :: { Region#Size(Region#Singleton(o, f)) } 
-	 Region#Size(Region#Singleton(o, f)) == 1);
-axiom (forall<alpha> o: ref, f: Field alpha, r: region :: { Region#Size(Region#Union(Region#Singleton(o, f), r)) }
-    Region#Size(Region#Union(Region#Singleton(o, f), r)) == 1 + Region#Size(r));
-//axiom (forall r: region :: { Region#Size(r) } 
-//	(forall<alpha> o: ref, f: Field alpha :: r[o, f] <==> Region#Size(r) == 1 + Region#Size(Region#Difference(r, Region#Singleton(o, f)))));
-
-
-
-// ---------------------------------------------------------------
-// -- The region -------------------------------------
-// ---------------------------------------------------------------
-
-function ObjectToRegion(ref) : region;
-/*
-axiom (forall obj: ref, h: HeapType :: { ObjectToRegion(obj, h) } 
-   (forall<alpha> o: ref, f: Field alpha :: obj != null && h[obj, alloc] && ObjectToRegion(obj, h)[o, f] <==> 
-      o == obj && f != alloc && DeclType(f) == dtype(obj) && FieldOfDecl(dtype(obj), DeclName(f)) == f));*/
-/*axiom (forall obj: ref, h: HeapType :: { ObjectToRegion(obj, h) } 
-   (forall<alpha> o: ref, f: Field alpha :: $IsGoodHeap(h) && ObjectToRegion(obj, h)[o, f] <==>  o != null && h[o, alloc] && o == obj && 
-       DeclType(f) == dtype(obj) && f != alloc));
-axiom (forall<alpha> o: ref, f: Field alpha, obj: ref, h: HeapType :: { ObjectToRegion(obj, h)[o, f] } 
-   $IsGoodHeap(h) && obj != null && ObjectToRegion(obj, h)[o, f] ==> h[o, alloc] && o == obj && dtype(obj) == DeclType(f) && f != alloc);
-*/
-/*
-function {:inline true} readRegion(H: HeapType, r: ref, nxt: Field ref) : region
-{
-	List(r, H, nxt)
-}
-
-function List(ref, HeapType, Field ref): region;
-axiom (forall<beta> root: ref, nxt: Field ref, h: HeapType, o: ref, f: Field beta :: { List(root, h, nxt)[o, f] }
-	root == null ==> !(List(root, h, nxt)[o, f]));
-
-axiom (forall<alpha> root: ref, nxt: Field ref, h: HeapType, o: ref, f: Field alpha :: { List(root, h, nxt)[o, f] }
-	root != null ==> (h[root, rthis][o, f] || List(read(h, o, nxt), h, nxt)[o, f]));
 */

@@ -315,6 +315,13 @@ namespace Microsoft.Dafny {
                 return new Bpl.TypeSynonymAnnotation(Token.NoToken, finite ? setTypeCtor : isetTypeCtor, new List<Bpl.Type> { ty });
             }
 
+            public Bpl.Type RegionType(IToken tok) {
+                Contract.Requires(tok != null);
+                Contract.Ensures(Contract.Result<Bpl.Type>() != null);
+
+                return new Bpl.TypeSynonymAnnotation(Token.NoToken, regionTypeCtor, new List<Bpl.Type>());
+            }
+
             public Bpl.Type MultiSetType(IToken tok, Bpl.Type ty) {
                 Contract.Requires(tok != null);
                 Contract.Requires(ty != null);
@@ -337,13 +344,7 @@ namespace Microsoft.Dafny {
                 return new Bpl.CtorType(Token.NoToken, seqTypeCtor, new List<Bpl.Type> { ty });
             }
 
-            public Bpl.Type RegionType(IToken tok) {
-                Contract.Requires(tok != null);
-                Contract.Ensures(Contract.Result<Bpl.Type>() != null);
-
-                return new Bpl.TypeSynonymAnnotation(Token.NoToken, regionTypeCtor, new List<Bpl.Type>());
-            }
-
+            
             public Bpl.Type FieldName(IToken tok, Bpl.Type ty) {
                 Contract.Requires(tok != null);
                 Contract.Requires(ty != null);
@@ -5305,7 +5306,7 @@ namespace Microsoft.Dafny {
             Bpl.Expr ante = Bpl.Expr.And(Bpl.Expr.Neq(o, predef.Null), etran.IsAlloced(tok, o));
             // Yuyan
             // Bpl.Expr oInCallee = InRWClause(tok, o, f, calleeFrame, etran, receiverReplacement, substMap);
-            Bpl.Expr oInCallee = InRWRegionClause(tok, o, f, calleeFrame, etran, receiverReplacement, substMap);
+            Bpl.Expr oInCallee = InRWRegionClause(tok, o, f, calleeFrame, false, etran, receiverReplacement, substMap);
             Bpl.Expr inEnclosingFrame = Bpl.Expr.Select(etran.TheFrame(tok), o, f);
             Bpl.Expr q = new Bpl.ForallExpr(tok, new List<TypeVariable> { alpha }, new List<Variable> { oVar, fVar },
                                             Bpl.Expr.Imp(Bpl.Expr.And(ante, oInCallee), inEnclosingFrame));
@@ -5611,8 +5612,8 @@ namespace Microsoft.Dafny {
         }
 
         // Yuyan
-        Bpl.Expr/*!*/ InRWRegionClause(IToken/*!*/ tok, List<FrameExpression/*!*/>/*!*/ rw, ExpressionTranslator/*!*/ etran,
-                               Expression receiverReplacement, Dictionary<IVariable, Expression/*!*/> substMap) {
+        Bpl.Expr/*!*/ InRWRegionClause(IToken/*!*/ tok, List<FrameExpression/*!*/>/*!*/ rw,  ExpressionTranslator/*!*/ etran,
+                                Expression receiverReplacement, Dictionary<IVariable, Expression/*!*/> substMap) {
             Contract.Requires(tok != null);
             Contract.Requires(etran != null);
             Contract.Requires(cce.NonNullElements(rw));
@@ -5647,7 +5648,7 @@ namespace Microsoft.Dafny {
                                 Contract.Assert(substMap != null);
                                 obj = Substitute(obj, receiverReplacement, substMap);
                             }
-                            union = FunctionCall(e.tok, BuiltinFunction.RegionOfRef, null, etran.HeapExpr, etran.TrExpr(obj));
+                            union = FunctionCall(e.tok, BuiltinFunction.RegionOfRef, null, etran.HeapExpr, etran.TrExpr(obj)); 
                         } else {
                             Bpl.Expr regionlst = TrRegionList(e.tok, rce.RegionList, etran, receiverReplacement, substMap);
                             union = FunctionCall(e.tok, BuiltinFunction.RegionUnion, null, union, regionlst);
@@ -5678,7 +5679,7 @@ namespace Microsoft.Dafny {
                     union = Bpl.Expr.True; // stop translating other expressions
                     break;
                 } else if (e is RegionFilterExpression) {
-                    union = TrRegionFilterExpression((RegionFilterExpression)e, etran);
+         // TODO           union = TrRegionFilterExpression((RegionFilterExpression)e, etran);
                 } else {
                     Contract.Assert(false);
                     throw new cce.UnreachableException();
@@ -5689,53 +5690,55 @@ namespace Microsoft.Dafny {
             return union;
         }
 
-        Bpl.Expr TrRegionFilterExpression(RegionFilterExpression rfe, ExpressionTranslator/*!*/ etran) {
-            Bpl.Expr e0 = etran.TrExpr(rfe.regionE);
-            if (rfe.filterType == 0) {
-                return etran.TrExpr(rfe.regionE);
-            } else if (rfe.filterType == 1) { // instance
-                Bpl.Expr e1 = etran.TrExpr(rfe.filterList[0]);
-                return FunctionCall(rfe.tok, BuiltinFunction.RegionFromRef, null, e0, e1);
-            } else if (rfe.filterType == 2) {   // instance and field
-                Bpl.Expr e_instance = etran.TrExpr(rfe.filterList[0]);
-                Bpl.Expr conjunct = null;
-                Bpl.Expr temp = null;
-                for (int i = 1; i < rfe.filterList.Count; i++) {
-                    Bpl.Expr e_field = new Bpl.IdentifierExpr(rfe.filterList[i].tok, GetField(((FieldExpression)rfe.filterList[i]).Field));
-                    temp = FunctionCall(rfe.tok, BuiltinFunction.RegionFromField, null, e0, e_instance, e_field);
-                    if (conjunct == null) {
-                        conjunct = temp;
-                    } else {
-                        conjunct = FunctionCall(rfe.tok, BuiltinFunction.RegionUnion, null, conjunct, temp);
-                    }
-                }
+        
+        //Bpl.Expr TrRegionFilterExpression(RegionFilterExpression rfe, ExpressionTranslator/*!*/ etran) {
+        //    Bpl.Expr e0 = etran.TrExpr(rfe.regionE);
+        //    if (rfe.filterType == 0) {
+        //        return etran.TrExpr(rfe.regionE);
+        //    } else if (rfe.filterType == 1) { // instance
+        //        Bpl.Expr e1 = etran.TrExpr(rfe.filterList[0]);
+        //        return FunctionCall(rfe.tok, BuiltinFunction.RegionFromRef, null, e0, e1);
+        //    } else if (rfe.filterType == 2) {   // instance and field
+        //        Bpl.Expr e_instance = etran.TrExpr(rfe.filterList[0]);
+        //        Bpl.Expr conjunct = null;
+        //        Bpl.Expr temp = null;
+        //        for (int i = 1; i < rfe.filterList.Count; i++) {
+        //            Bpl.Expr e_field = new Bpl.IdentifierExpr(rfe.filterList[i].tok, GetField(((FieldExpression)rfe.filterList[i]).Field));
+        //            temp = FunctionCall(rfe.tok, BuiltinFunction.RegionFromField, null, e0, e_instance, e_field);
+        //            if (conjunct == null) {
+        //                conjunct = temp;
+        //            } else {
+        //                conjunct = FunctionCall(rfe.tok, BuiltinFunction.SetUnion, null, conjunct, temp);
+        //            }
+        //        }
 
-                return conjunct;
-            } else if (rfe.filterType == 3) { // class name
-                Bpl.Expr e1 = new Bpl.IdentifierExpr(rfe.filterList[0].tok, GetClass(((ClassExpression)rfe.filterList[0]).ClsDecl));
-                return FunctionCall(rfe.tok, BuiltinFunction.RegionFromClassName, null, e0, e1);
-            } else if (rfe.filterType == 4) { // class name and field
-                Bpl.Expr e1 = new Bpl.IdentifierExpr(rfe.filterList[0].tok, GetClass(((ClassExpression)rfe.filterList[0]).ClsDecl));
-                Bpl.Expr conjunct = null;
-                Bpl.Expr temp = null;
-                for (int i = 1; i < rfe.filterList.Count; i++) {
-                    Bpl.Expr e_field = new Bpl.IdentifierExpr(rfe.filterList[i].tok, GetField(((FieldExpression)rfe.filterList[i]).Field));
-                    temp = FunctionCall(rfe.tok, BuiltinFunction.RegionFromClassNameAndField, null, e0, e1, e_field);
-                    if (conjunct == null) {
-                        conjunct = temp;
-                    } else {
-                        conjunct = FunctionCall(rfe.tok, BuiltinFunction.RegionUnion, null, conjunct, temp);
-                    }
-                }
+        //        return conjunct;
+        //    } else if (rfe.filterType == 3) { // class name
+        //        Bpl.Expr e1 = new Bpl.IdentifierExpr(rfe.filterList[0].tok, GetClass(((ClassExpression)rfe.filterList[0]).ClsDecl));
+        //        return FunctionCall(rfe.tok, BuiltinFunction.RegionFromClassName, null, e0, e1);
+        //    } else if (rfe.filterType == 4) { // class name and field
+        //        Bpl.Expr e1 = new Bpl.IdentifierExpr(rfe.filterList[0].tok, GetClass(((ClassExpression)rfe.filterList[0]).ClsDecl));
+        //        Bpl.Expr conjunct = null;
+        //        Bpl.Expr temp = null;
+        //        for (int i = 1; i < rfe.filterList.Count; i++) {
+        //            Bpl.Expr e_field = new Bpl.IdentifierExpr(rfe.filterList[i].tok, GetField(((FieldExpression)rfe.filterList[i]).Field));
+        //            temp = FunctionCall(rfe.tok, BuiltinFunction.RegionFromClassNameAndField, null, e0, e1, e_field);
+        //            if (conjunct == null) {
+        //                conjunct = temp;
+        //            } else {
+        //                conjunct = FunctionCall(rfe.tok, BuiltinFunction.SetUnion, null, conjunct, temp);
+        //            }
+        //        }
 
-                return conjunct;
-            } else {
-                Contract.Assert(false); throw new cce.UnreachableException();  // unexpected expression
-            }
-        }
-
+        //        return conjunct;
+        //    } else {
+        //        Contract.Assert(false); throw new cce.UnreachableException();  // unexpected expression
+        //    }
+        //}
+        
         // Yuyan
-        Bpl.Expr/*!*/ InRWRegionClause(IToken/*!*/ tok, Bpl.Expr/*!*/ o, Bpl.Expr/*!*/ f, List<FrameExpression/*!*/>/*!*/ rw, ExpressionTranslator/*!*/ etran,
+        Bpl.Expr/*!*/ InRWRegionClause(IToken/*!*/ tok, Bpl.Expr/*!*/ o, Bpl.Expr/*!*/ f, List<FrameExpression/*!*/>/*!*/ rw, bool usedInUnchanged,
+                               ExpressionTranslator/*!*/ etran,
                                Expression receiverReplacement, Dictionary<IVariable, Expression/*!*/> substMap) {
             Contract.Requires(tok != null);
             Contract.Requires(o != null);
@@ -5780,7 +5783,7 @@ namespace Microsoft.Dafny {
                 Bpl.Expr rr;
                 Contract.Assert(r.Field != null);
                 if (r.Field.Name == "*") {
-                    rr = FunctionCall(obj.tok, BuiltinFunction.RegionOfRef, null, etran.HeapExpr, etran.TrExpr(obj));
+                    rr = FunctionCall(obj.tok, BuiltinFunction.RegionOfRef, predef.BoxType, etran.HeapExpr, etran.TrExpr(obj)); //TODO
                     //rr = UnionFields(r.Obj, etran);
                 } else {
                     Bpl.Expr objExpr = etran.TrExpr(obj);
@@ -9530,7 +9533,8 @@ namespace Microsoft.Dafny {
                 ante = Bpl.Expr.And(ante, etranMod.IsAlloced(tok, o));
             }
             var eq = Bpl.Expr.Eq(heapOF, preHeapOF);
-            var ofInFrame = InRWClause(tok, o, f, frame, use == Resolver.FrameExpressionUse.Unchanged, etranMod, null, null);
+            // var ofInFrame = InRWClause(tok, o, f, frame, use == Resolver.FrameExpressionUse.Unchanged, etranMod, null, null);
+            var ofInFrame = InRWRegionClause(tok, o, f, frame, use == Resolver.FrameExpressionUse.Unchanged, etranMod, null, null);
             Bpl.Expr consequent = use == Resolver.FrameExpressionUse.Modifies ? Bpl.Expr.Or(eq, ofInFrame) : Bpl.Expr.Imp(ofInFrame, eq);
 
             var tr = new Bpl.Trigger(tok, true, new List<Bpl.Expr> { heapOF });
@@ -12292,7 +12296,7 @@ namespace Microsoft.Dafny {
 
             } else if (ty0 is RegionType) { // Yuyan
                 eq = FunctionCall(tok, BuiltinFunction.RegionEqual, null, e0, e1);
-                less = ProperSubregion(tok, e0, e1);
+                less = ProperSubset(tok, e0, e1);
                 atmost = FunctionCall(tok, BuiltinFunction.RegionSubRegion, null, e0, e1);
             } else if (ty0.IsNumericBased(Type.NumericPersuation.Real)) {
                 eq = Bpl.Expr.Eq(e0, e1);
@@ -14436,8 +14440,10 @@ namespace Microsoft.Dafny {
                 //    FootprintExpression fe = (FootprintExpression)expr;
                 //    return TrFootprint(fe.tok, fe.Footprint, this);
                 }else if (expr is RegionFilterExpression){ // Yuyan
-                    RegionFilterExpression rfe = (RegionFilterExpression)expr;
-                    return translator.TrRegionFilterExpression(rfe, this);
+                    RegionFilterExpression rfe = (RegionFilterExpression)expr;  //TODO
+                    Contract.Assert(false);
+                    return null;
+                    // return translator.TrRegionFilterExpression(rfe, this);
                 } else if (expr is MemberSelectExpr) {
                     var e = (MemberSelectExpr)expr;
                     return e.MemberSelectCase(
@@ -15935,6 +15941,7 @@ namespace Microsoft.Dafny {
             SetEqual,
             SetSubset,
             SetDisjoint,
+            SetSingleton,
 
             ISetEmpty,
             ISetUnionOne,
@@ -15988,11 +15995,14 @@ namespace Microsoft.Dafny {
             IMapEqual,
             IMapGlue,
 
+            IndexField,
+            MultiIndexField,
+
             // Yuyan region builtin functions
-            RegionFromField,
-            RegionFromRef,
-            RegionFromClassName,
-            RegionFromClassNameAndField,
+     //       RegionFromField,
+     //       RegionFromRef,
+     //       RegionFromClassName,
+     //       RegionFromClassNameAndField,
             RegionEmpty,
             RegionSingleton,
             RegionUnion,
@@ -16003,14 +16013,10 @@ namespace Microsoft.Dafny {
             RegionDifference,
             RegionEqual,
             RegionIntersection,
-            RegionInRegion,
-            RegionSize,
+     //       RegionSize,
 
-            RegionOfHeap,
+     //       RegionOfHeap,
             RegionOfRef,
-
-            IndexField,
-            MultiIndexField,
 
             Box,
             Unbox,
@@ -16150,6 +16156,11 @@ namespace Microsoft.Dafny {
                     Contract.Assert(typeInstantiation != null);
                     Bpl.Type resultType = predef.SetType(tok, true, typeInstantiation);
                     return Bpl.Expr.CoerceType(tok, FunctionCall(tok, "Set#Empty", resultType, args), resultType);
+                }
+                case BuiltinFunction.SetSingleton: {
+                    Contract.Assert(args.Length == 1);
+                    Contract.Assert(typeInstantiation != null);
+                    return FunctionCall(tok, "Set#Singleton", predef.SetType(tok, true, typeInstantiation), args);
                 }
                 case BuiltinFunction.SetUnionOne:
                     Contract.Assert(args.Length == 2);
@@ -16370,6 +16381,14 @@ namespace Microsoft.Dafny {
                     Contract.Assert(args.Length == 2);
                     Contract.Assert(typeInstantiation == null);
                     return FunctionCall(tok, "IMap#Equal", Bpl.Type.Bool, args);
+                case BuiltinFunction.IndexField:
+                    Contract.Assert(args.Length == 1);
+                    Contract.Assert(typeInstantiation == null);
+                    return FunctionCall(tok, "IndexField", predef.FieldName(tok, predef.BoxType), args);
+                case BuiltinFunction.MultiIndexField:
+                    Contract.Assert(args.Length == 2);
+                    Contract.Assert(typeInstantiation == null);
+                    return FunctionCall(tok, "MultiIndexField", predef.FieldName(tok, predef.BoxType), args);
 
                 /*------------------Yuyan region functions begins--------------------------------*/
                 // Yuyan added
@@ -16394,18 +16413,18 @@ namespace Microsoft.Dafny {
                 case BuiltinFunction.RegionSingleton:
                     Contract.Assert(args.Length == 2);
                     return FunctionCall(tok, "Region#Singleton", predef.RegionType(tok), args);
-                case BuiltinFunction.RegionFromRef:
-                    Contract.Assert(args.Length == 2);
-                    return FunctionCall(tok, "Region#RegionFromRef", predef.RegionType(tok), args);
-                case BuiltinFunction.RegionFromField:
-                    Contract.Assert(args.Length == 3);
-                    return FunctionCall(tok, "Region#RegionFromField", predef.RegionType(tok), args);
-                case BuiltinFunction.RegionFromClassName:
-                    Contract.Assert(args.Length == 2);
-                    return FunctionCall(tok, "Region#RegionFromClassName", predef.RegionType(tok), args);
-                case BuiltinFunction.RegionFromClassNameAndField:
-                    Contract.Assert(args.Length == 3);
-                    return FunctionCall(tok, "Region#RegionFromClassNameAndField", predef.RegionType(tok), args);
+                //case BuiltinFunction.RegionFromRef:
+                //    Contract.Assert(args.Length == 2);
+                //    return FunctionCall(tok, "Region#RegionFromRef", predef.RegionType(tok), args);
+                //case BuiltinFunction.RegionFromField:
+                //    Contract.Assert(args.Length == 3);
+                //    return FunctionCall(tok, "Region#RegionFromField", predef.RegionType(tok), args);
+                //case BuiltinFunction.RegionFromClassName:
+                //    Contract.Assert(args.Length == 2);
+                //    return FunctionCall(tok, "Region#RegionFromClassName", predef.RegionType(tok), args);
+                //case BuiltinFunction.RegionFromClassNameAndField:
+                //    Contract.Assert(args.Length == 3);
+                //    return FunctionCall(tok, "Region#RegionFromClassNameAndField", predef.RegionType(tok), args);
                 case BuiltinFunction.RegionDisjoint:
                     Contract.Assert(args.Length == 2);
                     return FunctionCall(tok, "Region#Disjoint", Bpl.Type.Bool, args);
@@ -16418,16 +16437,16 @@ namespace Microsoft.Dafny {
                 case BuiltinFunction.RegionIntersection:
                     Contract.Assert(args.Length == 2);
                     return FunctionCall(tok, "Region#Intersection", predef.RegionType(tok), args);
-                case BuiltinFunction.RegionInRegion:
-                    Contract.Assert(args.Length == 3);
-                    return FunctionCall(tok, "Region#Contains", Bpl.Type.Bool, args);
-                case BuiltinFunction.RegionSize:
-                    Contract.Assert(args.Length == 1);
-                    return FunctionCall(tok, "Region#Size", Bpl.Type.Int, args);
+                //case BuiltinFunction.RegionInRegion:
+                //    Contract.Assert(args.Length == 3);
+                //    return FunctionCall(tok, "Region#Contains", Bpl.Type.Bool, args);
+                //case BuiltinFunction.RegionSize:
+                //    Contract.Assert(args.Length == 1);
+                //    return FunctionCall(tok, "Region#Size", Bpl.Type.Int, args);
 
-                case BuiltinFunction.RegionOfHeap:
-                    Contract.Assert(args.Length == 1);
-                    return FunctionCall(tok, "RegionOfHeap", predef.RegionType(tok), args);
+                //case BuiltinFunction.RegionOfHeap:
+                //    Contract.Assert(args.Length == 1);
+                //    return FunctionCall(tok, "RegionOfHeap", predef.RegionType(tok), args);
 
                 case BuiltinFunction.RegionOfRef:
                     Contract.Assert(args.Length == 2);
@@ -16435,15 +16454,6 @@ namespace Microsoft.Dafny {
 
 
                 /*------------------Yuyan region functions ends----------------------------------*/
-
-                case BuiltinFunction.IndexField:
-                    Contract.Assert(args.Length == 1);
-                    Contract.Assert(typeInstantiation == null);
-                    return FunctionCall(tok, "IndexField", predef.FieldName(tok, predef.BoxType), args);
-                case BuiltinFunction.MultiIndexField:
-                    Contract.Assert(args.Length == 2);
-                    Contract.Assert(typeInstantiation == null);
-                    return FunctionCall(tok, "MultiIndexField", predef.FieldName(tok, predef.BoxType), args);
 
                 case BuiltinFunction.Box:
                     Contract.Assert(args.Length == 1);
@@ -16568,17 +16578,7 @@ namespace Microsoft.Dafny {
               Bpl.Expr.Not(FunctionCall(tok, BuiltinFunction.SetSubset, null, e1, e0)));
         }
 
-        // Yuyan
-        public Bpl.Expr ProperSubregion(IToken tok, Bpl.Expr e0, Bpl.Expr e1) {
-            Contract.Requires(tok != null);
-            Contract.Requires(e0 != null);
-            Contract.Requires(e1 != null);
-            Contract.Ensures(Contract.Result<Bpl.Expr>() != null);
-
-            return Bpl.Expr.And(
-              FunctionCall(tok, BuiltinFunction.RegionSubRegion, null, e0, e1),
-              Bpl.Expr.Not(FunctionCall(tok, BuiltinFunction.RegionSubRegion, null, e1, e0)));
-        }
+       
         public Bpl.Expr ProperMultiset(IToken tok, Bpl.Expr e0, Bpl.Expr e1) {
             Contract.Requires(tok != null);
             Contract.Requires(e0 != null);
