@@ -5178,7 +5178,7 @@ namespace Microsoft.Dafny {
             }
 
             // set up the information used to verify the method's modifies clause
-            DefineFrame(m.tok, m.Mod.Expressions, builder, localVariables, null);
+            DefineFrame(m.tok, m.Mod.Expressions, builder, localVariables, null, null);
             if (wellformednessProc) {
                 builder.Add(CaptureState(m.tok, false, "initial state"));
             } else {
@@ -5203,7 +5203,7 @@ namespace Microsoft.Dafny {
             th.Type = Resolver.GetThisType(iter.tok, iter);  // resolve here
             iteratorFrame.Add(new FrameExpression(iter.tok, th, null));
             iteratorFrame.AddRange(iter.Modifies.Expressions);
-            DefineFrame(iter.tok, iteratorFrame, builder, localVariables, null);
+            DefineFrame(iter.tok, iteratorFrame, builder, localVariables, null, null);
             builder.Add(CaptureState(iter.tok, false, "initial state"));
         }
 
@@ -5221,7 +5221,8 @@ namespace Microsoft.Dafny {
             return CaptureState(stmt.EndTok, true, null);
         }
 
-        void DefineFrame(IToken/*!*/ tok, List<FrameExpression/*!*/>/*!*/ frameClause, BoogieStmtListBuilder/*!*/ builder, List<Variable>/*!*/ localVariables, string name) {
+        void DefineFrame(IToken/*!*/ tok, List<FrameExpression/*!*/>/*!*/ frameClause, BoogieStmtListBuilder/*!*/ builder, List<Variable>/*!*/ localVariables, 
+            string name, string footprintName) {
             Contract.Requires(tok != null);
             Contract.Requires(cce.NonNullElements(frameClause));
             Contract.Requires(builder != null);
@@ -5235,13 +5236,12 @@ namespace Microsoft.Dafny {
             Bpl.LocalVariable frame = new Bpl.LocalVariable(tok, new Bpl.TypedIdent(tok, name ?? theFrame.Name, theFrame.Type));
             localVariables.Add(frame);
 
-            /* TODO: deal with footprint later
             // Declare a local variable $_FootPrint: RegionType
             Bpl.IdentifierExpr theFootPrint = etran.TheFootPrint(tok);  // this is a throw-away expression, used only to extract the type of the $_FootPrint variable
             Contract.Assert(theFootPrint.Type != null);  // follows from the postcondition of TheFootPrint
             Bpl.LocalVariable footprint = new Bpl.LocalVariable(tok, new Bpl.TypedIdent(tok, footprintName ?? theFootPrint.Name, theFootPrint.Type));
             localVariables.Add(footprint);
-            */
+
 
             // $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null && $Heap[$o,alloc] ==> ($o,$f) in Modifies/Reads-Clause);
             // $_Frame := (lambda<alpha> $o: ref, $f: Field alpha :: $o != null                    ==> ($o,$f) in Modifies/Reads-Clause);
@@ -5252,21 +5252,10 @@ namespace Microsoft.Dafny {
             Bpl.IdentifierExpr f = new Bpl.IdentifierExpr(tok, fVar);
             Bpl.Expr oNotNull = Bpl.Expr.Neq(o, predef.Null);
             Bpl.Expr ante = Bpl.Expr.And(oNotNull, etran.IsAlloced(tok, o));
-            Bpl.Expr consequent = InRWClause(tok, o, f, frameClause, etran, null, null);
-                       
-            /* for region
-             // Yuyan: relace InRWClause with InRWRegionClause
-             Bpl.Expr footprintVal = InRWRegionClause(tok, frameClause, etran, null, null);
-              Bpl.Expr consequent;
-            if (footprintVal == Bpl.Expr.True) {
-                consequent = footprintVal;
-            } else {
-                Bpl.IdentifierExpr ftp = new Bpl.IdentifierExpr(tok, footprint);
-                builder.Add(Bpl.Cmd.SimpleAssign(tok, ftp, footprintVal));
+            // Bpl.Expr consequent = InRWClause(tok, o, f, frameClause, etran, null, null);
+            Bpl.Expr consequent = InRWRegionClause(tok, o, f, frameClause, false, etran, null, null);
 
-                consequent = Bpl.Expr.Select(ftp, o, f);
-            }
-            */
+
             Bpl.Expr lambda = new Bpl.LambdaExpr(tok, new List<TypeVariable> { alpha }, new List<Variable> { oVar, fVar }, null,
                                                  Bpl.Expr.Imp(ante, consequent));
 
@@ -5611,8 +5600,9 @@ namespace Microsoft.Dafny {
             return disjunction;
         }
 
+        
         // Yuyan
-        Bpl.Expr/*!*/ InRWRegionClause(IToken/*!*/ tok, List<FrameExpression/*!*/>/*!*/ rw,  ExpressionTranslator/*!*/ etran,
+        Bpl.Expr/*!*/ InRWRegionClauseAux(IToken/*!*/ tok, List<FrameExpression/*!*/>/*!*/ rw,  ExpressionTranslator/*!*/ etran,
                                 Expression receiverReplacement, Dictionary<IVariable, Expression/*!*/> substMap) {
             Contract.Requires(tok != null);
             Contract.Requires(etran != null);
@@ -5750,7 +5740,7 @@ namespace Microsoft.Dafny {
             Contract.Requires((receiverReplacement == null) == (substMap == null));
             Contract.Ensures(Contract.Result<Bpl.Expr>() != null);
 
-            Bpl.Expr footprint = InRWRegionClause(tok, rw, etran, receiverReplacement, substMap);
+            Bpl.Expr footprint = InRWRegionClauseAux(tok, rw, etran, receiverReplacement, substMap);
             Contract.Assert(footprint != null);
             Bpl.Expr ret;
             if (footprint == Bpl.Expr.True) {
@@ -5909,7 +5899,7 @@ namespace Microsoft.Dafny {
             }
             builder.Add(CaptureState(f.tok, false, "initial state"));
 
-            DefineFrame(f.tok, f.Reads, builder, locals, null);
+            DefineFrame(f.tok, f.Reads, builder, locals, null, null);
             InitializeFuelConstant(f.tok, builder, etran);
             // Check well-formedness of the preconditions (including termination), and then
             // assume each one of them.  After all that (in particular, after assuming all
@@ -6006,7 +5996,7 @@ namespace Microsoft.Dafny {
                                            * is already added. The only reason why we add the frame axiom definition
                                            * again is to make boogie gives the same trace as before the change that
                                            * makes reads clauses also guard the requires */
-                           , null);
+                           , null, null);
 
                 wfo = new WFOptions(null, true, true /* do delayed reads checks */);
                 CheckWellformedWithResult(f.Body, wfo, funcAppl, f.ResultType, locals, bodyCheckBuilder, etran);
@@ -6096,7 +6086,7 @@ namespace Microsoft.Dafny {
             builder.Add(CaptureState(decl.tok, false, "initial state"));
             isAllocContext = new IsAllocContext(true);
 
-            DefineFrame(decl.tok, new List<FrameExpression>(), builder, locals, null);
+            DefineFrame(decl.tok, new List<FrameExpression>(), builder, locals, null, null);
 
             // some initialization stuff;  // This is collected in builderInitializationArea
             // define frame;
@@ -6243,7 +6233,7 @@ namespace Microsoft.Dafny {
             builder.Add(CaptureState(decl.tok, false, "initial state"));
             isAllocContext = new IsAllocContext(true);
 
-            DefineFrame(decl.tok, new List<FrameExpression>(), builder, locals, null);
+            DefineFrame(decl.tok, new List<FrameExpression>(), builder, locals, null, null);
 
             // check well-formedness of the RHS expression
             CheckWellformed(decl.Rhs, new WFOptions(null, true), locals, builder, etran);
@@ -7675,8 +7665,9 @@ namespace Microsoft.Dafny {
                         // Set up a new frame
                         var frameName = CurrentIdGenerator.FreshId("$_Frame#l");
                         reads = lam.Reads.ConvertAll(s.SubstFrameExpr);
-                        DefineFrame(e.tok, reads, newBuilder, locals, frameName);
-                        newEtran = new ExpressionTranslator(newEtran, frameName);
+                        var footprintName = CurrentIdGenerator.FreshId("$_FootPrint");
+                        DefineFrame(e.tok, reads, newBuilder, locals, frameName, footprintName);
+                        newEtran = new ExpressionTranslator(newEtran, frameName, footprintName);
 
                         // Check frame WF and that it read covers itself
                         newOptions = new WFOptions(options.SelfCallsAllowance, true /* check reads clauses */, true /* delay reads checks */);
@@ -10274,9 +10265,10 @@ namespace Microsoft.Dafny {
                 // cause the change of the heap according to the given frame
                 var suffix = CurrentIdGenerator.FreshId("modify#");
                 string modifyFrameName = "$Frame$" + suffix;
+                string modifyFootprintName = "$FootPrint$" + suffix;
                 var preModifyHeapVar = new Bpl.LocalVariable(s.Tok, new Bpl.TypedIdent(s.Tok, "$PreModifyHeap$" + suffix, predef.HeapType));
                 locals.Add(preModifyHeapVar);
-                DefineFrame(s.Tok, s.Mod.Expressions, builder, locals, modifyFrameName);
+                DefineFrame(s.Tok, s.Mod.Expressions, builder, locals, modifyFrameName, modifyFootprintName);
                 if (s.Body == null) {
                     var preModifyHeap = new Bpl.IdentifierExpr(s.Tok, preModifyHeapVar);
                     // preModifyHeap := $Heap;
@@ -10287,11 +10279,11 @@ namespace Microsoft.Dafny {
                     builder.Add(TrAssumeCmd(s.Tok, HeapSucc(preModifyHeap, etran.HeapExpr, s.IsGhost)));
                     // assume nothing outside the frame was changed
                     var etranPreLoop = new ExpressionTranslator(this, predef, preModifyHeap);
-                    var updatedFrameEtran = new ExpressionTranslator(etran, modifyFrameName);
+                    var updatedFrameEtran = new ExpressionTranslator(etran, modifyFrameName, modifyFootprintName);
                     builder.Add(TrAssumeCmd(s.Tok, FrameConditionUsingDefinedFrame(s.Tok, etranPreLoop, etran, updatedFrameEtran)));
                 } else {
                     // do the body, but with preModifyHeapVar as the governing frame
-                    var updatedFrameEtran = new ExpressionTranslator(etran, modifyFrameName);
+                    var updatedFrameEtran = new ExpressionTranslator(etran, modifyFrameName, modifyFootprintName);
                     TrStmt(s.Body, builder, locals, updatedFrameEtran);
                 }
                 builder.Add(CaptureState(stmt));
@@ -11457,15 +11449,16 @@ namespace Microsoft.Dafny {
             ExpressionTranslator etranPreLoop = new ExpressionTranslator(this, predef, preLoopHeap);
             ExpressionTranslator updatedFrameEtran;
             string loopFrameName = "$Frame$" + suffix;
+            string loopFootprintName = "$FootPrint$" + suffix;
             if (s.Mod.Expressions != null) {
-                updatedFrameEtran = new ExpressionTranslator(etran, loopFrameName);
+                updatedFrameEtran = new ExpressionTranslator(etran, loopFrameName, loopFootprintName);
             } else {
                 updatedFrameEtran = etran;
             }
 
             if (s.Mod.Expressions != null) { // check that the modifies is a subset
                 CheckFrameSubset(s.Tok, s.Mod.Expressions, null, null, etran, builder, "loop modifies clause may violate context's modifies clause", null);
-                DefineFrame(s.Tok, s.Mod.Expressions, builder, locals, loopFrameName);
+                DefineFrame(s.Tok, s.Mod.Expressions, builder, locals, loopFrameName, loopFootprintName);
             }
             builder.Add(Bpl.Cmd.SimpleAssign(s.Tok, preLoopHeap, etran.HeapExpr));
 
@@ -14038,6 +14031,7 @@ namespace Microsoft.Dafny {
             public readonly Translator translator;
             public readonly string This;
             public readonly string modifiesFrame; // the name of the context's frame variable.
+            public readonly string modifiesFootPrint; // Yuyan: the name of the footprint's variable.
             readonly Function applyLimited_CurrentFunction;
             public readonly FuelSetting layerInterCluster;
             public readonly FuelSetting layerIntraCluster = null;  // a value of null says to do the same as for inter-cluster calls
@@ -14054,6 +14048,7 @@ namespace Microsoft.Dafny {
                 Contract.Invariant(translator != null);
                 Contract.Invariant(This != null);
                 Contract.Invariant(modifiesFrame != null);
+                Contract.Invariant(modifiesFootPrint != null);
                 Contract.Invariant(layerInterCluster != null);
                 Contract.Invariant(0 <= Statistics_CustomLayerFunctionCount);
             }
@@ -14063,12 +14058,14 @@ namespace Microsoft.Dafny {
             /// one ExpressionTranslator is constructed from another, unchanged parameters are just copied in.
             /// </summary>
             ExpressionTranslator(Translator translator, PredefinedDecls predef, Bpl.Expr heap, string thisVar,
-              Function applyLimited_CurrentFunction, FuelSetting layerInterCluster, FuelSetting layerIntraCluster, string modifiesFrame, bool stripLits) {
+              Function applyLimited_CurrentFunction, FuelSetting layerInterCluster, FuelSetting layerIntraCluster, string modifiesFrame, bool stripLits, 
+              string modifiesFootPrint/*Yuyan*/) {
 
                 Contract.Requires(translator != null);
                 Contract.Requires(predef != null);
                 Contract.Requires(thisVar != null);
                 Contract.Requires(modifiesFrame != null);
+                Contract.Requires(modifiesFootPrint != null);
 
                 this.translator = translator;
                 this.predef = predef;
@@ -14083,6 +14080,7 @@ namespace Microsoft.Dafny {
                 }
                 this.modifiesFrame = modifiesFrame;
                 this.stripLits = stripLits;
+                this.modifiesFootPrint = modifiesFootPrint; /* Yuyan */
             }
 
             public ExpressionTranslator(Translator translator, PredefinedDecls predef, IToken heapToken)
@@ -14110,19 +14108,19 @@ namespace Microsoft.Dafny {
             }
 
             public ExpressionTranslator(Translator translator, PredefinedDecls predef, Bpl.Expr heap, string thisVar)
-              : this(translator, predef, heap, thisVar, null, new FuelSetting(translator, 1), null, "$_Frame", false) {
+              : this(translator, predef, heap, thisVar, null, new FuelSetting(translator, 1), null, "$_Frame", false, "$_FootPrint") {
                 Contract.Requires(translator != null);
                 Contract.Requires(predef != null);
                 Contract.Requires(thisVar != null);
             }
 
             public ExpressionTranslator(ExpressionTranslator etran, Bpl.Expr heap)
-              : this(etran.translator, etran.predef, heap, etran.This, etran.applyLimited_CurrentFunction, etran.layerInterCluster, etran.layerIntraCluster, etran.modifiesFrame, etran.stripLits) {
+              : this(etran.translator, etran.predef, heap, etran.This, etran.applyLimited_CurrentFunction, etran.layerInterCluster, etran.layerIntraCluster, etran.modifiesFrame, etran.stripLits, etran.modifiesFootPrint) {
                 Contract.Requires(etran != null);
             }
 
-            public ExpressionTranslator(ExpressionTranslator etran, string modifiesFrame)
-              : this(etran.translator, etran.predef, etran.HeapExpr, etran.This, etran.applyLimited_CurrentFunction, etran.layerInterCluster, etran.layerIntraCluster, modifiesFrame, etran.stripLits) {
+            public ExpressionTranslator(ExpressionTranslator etran, string modifiesFrame, string modifiesFootPrint)
+              : this(etran.translator, etran.predef, etran.HeapExpr, etran.This, etran.applyLimited_CurrentFunction, etran.layerInterCluster, etran.layerIntraCluster, modifiesFrame, etran.stripLits, modifiesFootPrint) {
                 Contract.Requires(etran != null);
                 Contract.Requires(modifiesFrame != null);
             }
@@ -14133,7 +14131,8 @@ namespace Microsoft.Dafny {
                     Contract.Ensures(Contract.Result<ExpressionTranslator>() != null);
 
                     if (oldEtran == null) {
-                        oldEtran = new ExpressionTranslator(translator, predef, new Bpl.OldExpr(HeapExpr.tok, HeapExpr), This, applyLimited_CurrentFunction, layerInterCluster, layerIntraCluster, modifiesFrame, stripLits);
+                        oldEtran = new ExpressionTranslator(translator, predef, new Bpl.OldExpr(HeapExpr.tok, HeapExpr), This, applyLimited_CurrentFunction, layerInterCluster, 
+                            layerIntraCluster, modifiesFrame, stripLits, modifiesFootPrint/*Yuyan*/);
                         oldEtran.oldEtran = oldEtran;
                     }
                     return oldEtran;
@@ -14144,7 +14143,8 @@ namespace Microsoft.Dafny {
                 Contract.Requires(label != null);
                 Contract.Ensures(Contract.Result<ExpressionTranslator>() != null);
                 var heapAt = new Bpl.IdentifierExpr(Token.NoToken, "$Heap_at_" + label.AssignUniqueId(translator.CurrentIdGenerator), predef.HeapType);
-                return new ExpressionTranslator(translator, predef, heapAt, This, applyLimited_CurrentFunction, layerInterCluster, layerIntraCluster, modifiesFrame, stripLits);
+                return new ExpressionTranslator(translator, predef, heapAt, This, applyLimited_CurrentFunction, layerInterCluster, layerIntraCluster, modifiesFrame, 
+                    stripLits, modifiesFootPrint/*Yuyan*/);
             }
 
             public bool UsesOldHeap {
@@ -14158,7 +14158,7 @@ namespace Microsoft.Dafny {
                 Contract.Requires(layerArgument != null);
                 Contract.Ensures(Contract.Result<ExpressionTranslator>() != null);
 
-                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, null, new FuelSetting(translator, 0, layerArgument), new FuelSetting(translator, 0, layerArgument), modifiesFrame, stripLits);
+                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, null, new FuelSetting(translator, 0, layerArgument), new FuelSetting(translator, 0, layerArgument), modifiesFrame, stripLits, modifiesFootPrint);
             }
 
             public ExpressionTranslator WithCustomFuelSetting(CustomFuelSettings customSettings) {
@@ -14166,7 +14166,7 @@ namespace Microsoft.Dafny {
                 Contract.Requires(customSettings != null);
                 Contract.Ensures(Contract.Result<ExpressionTranslator>() != null);
 
-                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, null, layerInterCluster.WithContext(customSettings), layerIntraCluster.WithContext(customSettings), modifiesFrame, stripLits);
+                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, null, layerInterCluster.WithContext(customSettings), layerIntraCluster.WithContext(customSettings), modifiesFrame, stripLits, modifiesFootPrint);
             }
 
             public ExpressionTranslator ReplaceLayer(Bpl.Expr layerArgument) {
@@ -14174,12 +14174,12 @@ namespace Microsoft.Dafny {
                 Contract.Requires(layerArgument != null);
                 Contract.Ensures(Contract.Result<ExpressionTranslator>() != null);
 
-                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, applyLimited_CurrentFunction, layerInterCluster.WithLayer(layerArgument), layerIntraCluster.WithLayer(layerArgument), modifiesFrame, stripLits);
+                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, applyLimited_CurrentFunction, layerInterCluster.WithLayer(layerArgument), layerIntraCluster.WithLayer(layerArgument), modifiesFrame, stripLits, modifiesFootPrint);
             }
 
             public ExpressionTranslator WithNoLits() {
                 Contract.Ensures(Contract.Result<ExpressionTranslator>() != null);
-                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, applyLimited_CurrentFunction, layerInterCluster, layerIntraCluster, modifiesFrame, true);
+                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, applyLimited_CurrentFunction, layerInterCluster, layerIntraCluster, modifiesFrame, true, modifiesFootPrint);
             }
 
             public ExpressionTranslator LimitedFunctions(Function applyLimited_CurrentFunction, Bpl.Expr layerArgument) {
@@ -14187,29 +14187,30 @@ namespace Microsoft.Dafny {
                 Contract.Requires(layerArgument != null);
                 Contract.Ensures(Contract.Result<ExpressionTranslator>() != null);
 
-                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, applyLimited_CurrentFunction, /* layerArgument */ layerInterCluster, new FuelSetting(translator, 0, layerArgument), modifiesFrame, stripLits);
+                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, applyLimited_CurrentFunction, /* layerArgument */ layerInterCluster, new FuelSetting(translator, 0, layerArgument), modifiesFrame, stripLits, modifiesFootPrint);
             }
 
             public ExpressionTranslator LayerOffset(int offset) {
                 Contract.Requires(0 <= offset);
                 Contract.Ensures(Contract.Result<ExpressionTranslator>() != null);
 
-                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, applyLimited_CurrentFunction, layerInterCluster.Offset(offset), layerIntraCluster, modifiesFrame, stripLits);
+                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, applyLimited_CurrentFunction, layerInterCluster.Offset(offset), layerIntraCluster, modifiesFrame, stripLits, modifiesFootPrint);
             }
 
             public ExpressionTranslator DecreaseFuel(int offset) {
                 Contract.Requires(0 <= offset);
                 Contract.Ensures(Contract.Result<ExpressionTranslator>() != null);
 
-                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, applyLimited_CurrentFunction, layerInterCluster.Decrease(offset), layerIntraCluster, modifiesFrame, stripLits);
+                return CloneExpressionTranslator(this, translator, predef, HeapExpr, This, applyLimited_CurrentFunction, layerInterCluster.Decrease(offset), layerIntraCluster, modifiesFrame, stripLits, modifiesFootPrint);
             }
 
             private static ExpressionTranslator CloneExpressionTranslator(ExpressionTranslator orig,
               Translator translator, PredefinedDecls predef, Bpl.Expr heap, string thisVar,
-              Function applyLimited_CurrentFunction, FuelSetting layerInterCluster, FuelSetting layerIntraCluster, string modifiesFrame, bool stripLits) {
-                var et = new ExpressionTranslator(translator, predef, heap, thisVar, applyLimited_CurrentFunction, layerInterCluster, layerIntraCluster, modifiesFrame, stripLits);
+              Function applyLimited_CurrentFunction, FuelSetting layerInterCluster, FuelSetting layerIntraCluster, string modifiesFrame, bool stripLits, string modifiesFootPrint/*Yuyan*/) {
+                var et = new ExpressionTranslator(translator, predef, heap, thisVar, applyLimited_CurrentFunction, layerInterCluster, layerIntraCluster, modifiesFrame, stripLits, modifiesFootPrint);
                 if (orig.oldEtran != null) {
-                    var etOld = new ExpressionTranslator(translator, predef, orig.Old.HeapExpr, thisVar, applyLimited_CurrentFunction, layerInterCluster, layerIntraCluster, modifiesFrame, stripLits);
+                    var etOld = new ExpressionTranslator(translator, predef, orig.Old.HeapExpr, thisVar, applyLimited_CurrentFunction, layerInterCluster, layerIntraCluster, 
+                        modifiesFrame, stripLits, modifiesFootPrint);
                     etOld.oldEtran = etOld;
                     et.oldEtran = etOld;
                 }
@@ -14225,6 +14226,15 @@ namespace Microsoft.Dafny {
                 Bpl.Type fieldAlpha = predef.FieldName(tok, alpha);
                 Bpl.Type ty = new Bpl.MapType(tok, new List<TypeVariable> { alpha }, new List<Bpl.Type> { predef.RefType, fieldAlpha }, Bpl.Type.Bool);
                 return new Bpl.IdentifierExpr(tok, this.modifiesFrame, ty);
+            }
+
+            // region
+            public Bpl.IdentifierExpr TheFootPrint(IToken tok) {
+                Contract.Requires(tok != null);
+                Contract.Ensures(Contract.Result<Bpl.IdentifierExpr>() != null);
+                Contract.Ensures(Contract.Result<Bpl.IdentifierExpr>().Type != null);
+
+                return new Bpl.IdentifierExpr(tok, this.modifiesFootPrint, predef.RegionType(tok));
             }
 
             public Bpl.IdentifierExpr Tick() {
